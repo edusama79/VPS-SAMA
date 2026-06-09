@@ -27,22 +27,24 @@ echo -ne "\033[1;97m Digite su slogan o marca personal: \033[1;32m" && read slog
 
 # Crear directorios del sistema
 mkdir -p /etc/VPS-SAMA
-mkdir -p /etc/ADM-db
+mkdir -p /etc/VPS-SAMA/controlador
+mkdir -p /etc/VPS-SAMA/herramientas
+mkdir -p /etc/VPS-SAMA/protocolos
 echo "$slogan" > /etc/VPS-SAMA/message.txt
 
 msg -bar
-echo -e "\e[1;37m[+] Instalando dependencias del sistema...\e[0m"
+echo -e "\e[1;37m[+] Instalando dependencias del sistema y Python...\e[0m"
 apt-get update -y && apt-get upgrade -y
-apt-get install python3 python3-pip screen unzip lsof tar curl iptables openssl dropbear squid stunnel4 net-tools -y
+apt-get install python3 python3-pip screen unzip lsof tar curl iptables openssl dropbear squid stunnel4 net-tools htop -y
 
 msg -bar
-echo -e "\e[1;32m[+] Descargando componentes del Panel LATAM...\e[0m"
+echo -e "\e[1;32m[+] Descargando componentes personalizados de VPS-SAMA...\e[0m"
 
-# NOTA: En los siguientes pasos vamos a hacer que descargue tus propios archivos limpios de acá
-# Por ahora dejamos las carpetas listas.
-chmod -R 755 /etc/VPS-SAMA
+# DESCARGA DIRECTA DE TU MENÚ DESDE TU NUEVO GITHUB
+curl -sSL -o /etc/VPS-SAMA/menu "https://raw.githubusercontent.com/edusama79/VPS-SAMA/main/menu"
+chmod +x /etc/VPS-SAMA/menu
 
-# Crear accesos directos en el VPS
+# Crear accesos directos rápidos en la terminal del VPS
 echo "/etc/VPS-SAMA/menu" > /usr/bin/menu && chmod +x /usr/bin/menu
 echo "/etc/VPS-SAMA/menu" > /usr/bin/vps-sama && chmod +x /usr/bin/vps-sama
 
@@ -62,19 +64,12 @@ class LatamHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Content-type', 'text/plain')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-            rutas_latam = {
-                "TOKEN": "/etc/ADM-db/token",
-                "HWID": "/etc/ADM-db/hwid",
-                "NORMAL": "/etc/ADM-db/usuarios"
-            }
+            ruta = "/etc/VPS-SAMA/usuarios.db"
             datos_para_app = ""
-            for tipo, ruta in rutas_latam.items():
-                if os.path.exists(ruta):
-                    with open(ruta, "r") as f:
-                        for linea in f:
-                            if linea.strip() and "|" in linea:
-                                datos_para_app += f"{linea.strip()}\n"
-            if datos_para_app:
+            if os.path.exists(ruta):
+                with open(ruta, "r") as f:
+                    datos_para_app = f.read()
+            if datos_para_app.strip():
                 self.wfile.write(bytes(datos_para_app, "utf-8"))
             else:
                 self.wfile.write(bytes("vacio|sin_cuentas\n", "utf-8"))
@@ -82,24 +77,26 @@ class LatamHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 with socketserver.TCPServer(("", PORT), LatamHandler) as httpd:
-    httpd.forever()
+    httpd.serve_forever()
 EOF
 
+# Reiniciar puerto 81 de fondo
 kill -9 $(lsof -t -i:81) 2>/dev/null
 screen -dmS api_vps_sama python3 /etc/VPS-SAMA/api_vps.py
 echo "@reboot root screen -dmS api_vps_sama python3 /etc/VPS-SAMA/api_vps.py" >> /etc/crontab
 
-# Pantalla de Bienvenida al entrar al SSH
-echo 'clear' >> /root/.bashrc
+# Pantalla estética al ingresar por SSH
+echo 'clear' > /root/.bashrc
 echo 'echo -e "\t\033[1;36m  __   __ ___  ___   ___   _   __  __   _   "' >> /root/.bashrc
 echo 'echo -e "\t\033[1;36m  \ \ / /| _ \/ __| / __| /_\ |  \/  | /_\  "' >> /root/.bashrc
 echo 'echo -e "\t\033[1;32m   \ V / |  _/\__ \ \__ \/ _ \| |\/| |/ _ \ "' >> /root/.bashrc
 echo 'echo -e "\t\033[1;32m    \_/  |_|  |___/ |___/_/ \_\|_|  |_/_/ \_\ "' >> /root/.bashrc
 echo 'echo ""' >> /root/.bashrc
-echo 'echo -e "\t\e[1;33m MARCA / RESELLER :\e[1;37m $(cat /etc/VPS-SAMA/message.txt)"' >> /root/.bashrc
+echo 'echo -e "\t\e[1;33m MARCA / RESELLER :\e[1;37m $(cat /etc/VPS-SAMA/message.txt 2>/dev/null)"' >> /root/.bashrc
 echo 'echo -e "\t\e[1;32m PANEL DE CONTROL : \e[1;41m menu \e[0m \e[1;32m o \e[1;41m vps-sama \e[0m"' >> /root/.bashrc
+echo 'echo -e "\t\e[1;35m API ANDROID APP  : \e[1;32m Activa en Puerto 81 \e[0m"' >> /root/.bashrc
 echo ""
 
 msg -bar
-echo -e "\e[1;92m   >> ¡INSTALADOR BASE DE VPS-SAMA CONFIGURADO! <<"
+echo -e "\e[1;92m   >> ¡SISTEMA VPS-SAMA INSTALADO Y VINCULADO CON ÉXITO! <<"
 msg -bar
