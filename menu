@@ -140,7 +140,7 @@ administrar_cuentas_sama() {
    echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mCREAR REGISTRO DE TOKEN MANUAL\n"
    echo -ne " \033[1;32m [4] \033[1;31m=>> \033[1;37mELIMINAR USUARIO O TOKEN (LISTADO)\n"
    echo -ne " \033[1;32m [5] \033[1;31m=>> \033[1;37mVER LISTADO DE USUARIOS DETALLADO\n"
-   echo -ne " \033[1;32m [6] \033[1;31m=>> \033[1;37mCAMBIAR CONTRASENA TOKEN GLOBAL\n"
+   echo -ne " \033[1;32m [6] \033[1;37m=>> \033[1;37mCAMBIAR CONTRASENA TOKEN GLOBAL\n"
    echo -ne " \033[1;32m [0] \033[1;31m=>> \033[1;41m VOLVER AL MENU ANTERIOR \033[0m\n"
    msg -bar
    
@@ -226,7 +226,7 @@ gestionar_v2ray_sama() {
    echo -ne " \033[1;32m [1] \033[1;31m=>> \033[1;37mENCENDER / APAGAR CORE V2RAY (INTERRUPTOR) $(check_status v2ray)\n"
    echo -ne " \033[1;32m [2] \033[1;31m=>> \033[1;37mASIGNAR/CAMBIAR EL PUERTO EN VIVO\n"
    echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mAGREGAR NUEVO USUARIO V2RAY (UUID)\n"
-   echo -ne " \033[1;32m [4] \033[1;31m=>> \033[1;37mELIMINAR USUARIO V2RAY DEL PANEL\n"
+   echo -ne " \033[1;32m [4] \033[1;37m=>> \033[1;37mELIMINAR USUARIO V2RAY DEL PANEL\n"
    echo -ne " \033[1;32m [5] \033[1;37m=>> \033[1;37mVER USUARIOS ACTIVOS Y LINKS CONFIG\n"
    echo -ne " \033[1;32m [0] \033[1;31m=>> \033[1;41m VOLVER AL MENÚ CENTRAL \033[0m\n"
    msg -bar
@@ -277,7 +277,7 @@ gestionar_v2ray_sama() {
       if [[ ! -s /etc/VPS-SAMA/v2ray_usuarios.db ]]; then echo -e " \e[1;31m[-] No hay usuarios.\e[0m" && read -p " Enter..." && return 0; fi
       local c=1 && declare -A v2_list
       while IFS='|' read -r user id exp; do
-         printf "  \e[1;32m[%02d]\e[1;31m =>> \e[1;37m%s \e[1;35m(Vence: %s)\e[0m\n" "$c" "$user" "$exp"
+         printf "  \e[1;32m[%02d]\e[1;31m => Gram \e[1;37m%s \e[1;35m(Vence: %s)\e[0m\n" "$c" "$user" "$exp"
          v2_list[$c]="$user" && c=$((c+1))
       done < /etc/VPS-SAMA/v2ray_usuarios.db
       read -p " Seleccione número a borrar: " n_del
@@ -414,7 +414,7 @@ herramientas_avanzadas_sama() {
          systemctl stop apache2 >/dev/null 2>&1
          systemctl disable apache2 >/dev/null 2>&1
          sed -i '/limpieza_vencidos/d' /etc/crontab
-         echo -e "\e[1;31m[-] Monitor Web Apache Desactivado y Purgado [OFF].\e[0m"
+         echo -e " \e[1;31m[-] Monitor Web Apache Desactivado y Purgado [OFF].\e[0m"
       else
          echo -e "    \e[1;36m⚙️ INSTALADOR PANEL DE VENCIMIENTO EXCLUSIVO ⚙️\e[0m"
          msg -bar
@@ -453,7 +453,7 @@ echo -ne " \033[1;32m [1] \033[1;31m=>> \033[1;37mADMINISTRAR CUENTAS SSH / TOKE
 echo -ne " \033[1;32m [2] \033[1;31m=>> \033[1;37mGESTIONAR CUENTAS TÚNELES V2RAY / XRAY ——> $(check_status v2ray)\n"
 echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mAPERTURA MANUAL DE PUERTOS (INTERRUPTORES PROTOCOLOS)\n"
 echo -ne " \033[1;32m [4] \033[1;37m=>> \033[1;37mHERRAMIENTAS DE RED, TORRENT, REBOOT Y SEGURIDAD\n"
-echo -ne " \033[1;32m [5] \033[1;35m=>> \033[1;35mACTUALIZAR PANEL E INSTALADORES CORE O.S\n"
+echo -ne " \033[1;32m [5] \033[1;35m=>> \033[1;35mACTUALIZAR PANEL AUTOMÁTICO (ONLINE GITHUB)\n"
 echo -ne " \033[1;32m [6] \033[1;31m=>> \033[1;31mDESINSTALAR SCRIPT COMPLETAMENTE DEL VPS\n"
 echo -ne " \033[1;32m [0] \033[1;31m=>> \033[1;41m SALIR DEL PANEL CONTROL \033[0m\n"
 msg -bar
@@ -465,11 +465,20 @@ case ${selection} in
 3) protocolos_dinamicos_sama ;;
 4) herramientas_avanzadas_sama ;;
 5)
-   msg -bar && echo -e " \e[1;36m[+] Sincronizando e instalando dependencias core...\e[0m"
-   if wget -q --spider https://raw.githubusercontent.com/edusama79/VPS-SAMA/main/instalar.sh; then
-      rm -rf /root/instalar.sh && wget -O /root/instalar.sh https://raw.githubusercontent.com/edusama79/VPS-SAMA/main/instalar.sh
-      chmod +x /root/instalar.sh && exec bash /root/instalar.sh
-   else echo -e " \e[1;32m[+] Entorno actualizado en vivo de forma local.\e[0m" && read -p " Enter..." ; fi ;;
+   # ACTUALIZACIÓN EN LÍNEA CORREGIDA SIN BUCLES DE TRABE
+   msg -bar && echo -e " \e[1;36m[+] Conectando con GitHub de edusama79...\e[0m"
+   sleep 1
+   if wget -q --spider https://raw.githubusercontent.com/edusama79/VPS-SAMA/main/menu; then
+      echo -e " \e[1;32m[+] Descargando código nuevo de forma directa...\e[0m"
+      wget -O /etc/VPS-SAMA/menu https://raw.githubusercontent.com/edusama79/VPS-SAMA/main/menu
+      chmod +x /etc/VPS-SAMA/menu
+      echo -e " \e[1;32m[+] ¡Panel actualizado con éxito!\e[0m"
+      sleep 1
+      exec bash /etc/VPS-SAMA/menu
+   else 
+      echo -e " \e[1;31m[-] Error: No se pudo conectar a la red.\e[0m"
+      read -p " Enter..." 
+   fi ;;
 6)
    msg -bar && echo -e " \e[1;31m🚨 ALERTA: Desinstalación integral.\e[0m"
    read -p " ¿Eliminar de raíz? (s/n): " confirm_des
@@ -479,7 +488,7 @@ case ${selection} in
       systemctl stop xray >/dev/null 2>&1
       systemctl stop apache2 >/dev/null 2>&1
       sed -i '/limpieza_vencidos/d' /etc/crontab && sed -i '/reboot/d' /etc/crontab
-      rm -rf /etc/VPS-SAMA /bin/menu /bin/sama /root/instalar.sh
+      rm -rf /etc/VPS-SAMA/bin/menu /bin/sama /root/instalar.sh
       echo -e " \e[1;32m[+] Desinstalado de raíz.\e[0m" && exit 0
    fi ;;
 0) exit 0 ;;
