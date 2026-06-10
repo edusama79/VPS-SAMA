@@ -85,7 +85,6 @@ selection_fun() {
 administrar_cuentas_sama() {
    clear
    msg -bar
-   # Leer la clave token en tiempo real para reflejar cambios inmediatos
    local CLAVE_TOKEN_ACTUAL=$(cat /etc/VPS-SAMA/token.key)
    
    echo -e "      \e[1;36m| #-#-► 🐲 ADMINISTRACIÓN DE CUENTAS ◄-#-# |\e[0m"
@@ -94,7 +93,7 @@ administrar_cuentas_sama() {
    msg -bar
    echo -ne " \033[1;32m [1] \033[1;31m=>> \033[1;37mNORMAL (Usuario y Contraseña tradicional)\n"
    echo -ne " \033[1;32m [2] \033[1;31m=>> \033[1;37mHWID   (Bloqueo por ID único de celular)\n"
-   echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mTOKEN  (Crear ingresando Token manual + Dueño)\n"
+   echo -ne " \033[1;32m [3] \033[1;37mTOKEN  (Crear ingresando Token manual + Dueño)\n"
    echo -ne " \033[1;32m [4] \033[1;31m=>> \033[1;37mREMOVER USUARIO O TOKEN DEL SISTEMA\n"
    echo -ne " \033[1;32m [5] \033[1;31m=>> \033[1;37mLISTAR TODAS LAS CUENTAS REGISTRADAS\n"
    echo -ne " \033[1;32m [6] \033[1;31m=>> \033[1;37mEDITAR / CAMBIAR LA CLAVE TOKEN FIJA\n"
@@ -133,9 +132,7 @@ administrar_cuentas_sama() {
       read -p " Ingrese o pegue el TOKEN manual (Usuario): " token_manual
       read -p " Días de duración para este Token: " dias
       
-      # Cargar la contraseña actual guardada de fondo
       local clave_uni=$(cat /etc/VPS-SAMA/token.key)
-      
       cliente_nom=$(echo "$cliente_nom" | sed 's/ /_/g')
       [[ -z "$cliente_nom" ]] && cliente_nom="Sin_Nombre"
 
@@ -213,11 +210,13 @@ msg -bar
 echo -ne " \033[1;32m [1] \033[1;31m=>> \033[1;37mADMINISTRAR CUENTAS (NORMAL / HWID / TOKEN)\n"
 echo -ne " \033[1;32m [2] \033[1;31m=>> \033[1;37mINSTALADORES DE PROTOCOLOS Y TÚNELES\n"
 echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mHERRAMIENTAS DE RED, PUERTOS Y OPTIMIZACIÓN BBR\n"
-echo -ne " \033[1;32m [4] \033[1;31m=>> \033[1;37mMONITOR DE PROCESOS EN TIEMPO REAL (HTOP)\n"
+echo -ne " \033[1;32m [4] \033[1;37m=>> \033[1;37mMONITOR DE PROCESOS EN TIEMPO REAL (HTOP)\n"
+echo -ne " \033[1;32m [5] \033[1;31m=>> \033[1;35mACTUALIZAR PANEL COMPLETO (ONLINE DESDE GITHUB)\n"
+echo -ne " \033[1;32m [6] \033[1;31m=>> \033[1;31mDESINSTALAR SCRIPT COMPLETAMENTE DEL VPS\n"
 echo -ne " \033[1;32m [0] \033[1;31m=>> \033[1;41m SALIR DEL PANEL CONTROL \033[0m\n"
 msg -bar
 
-selection=$(selection_fun 4)
+selection=$(selection_fun 6)
 case ${selection} in
 1) administrar_cuentas_sama ;;
 2) 
@@ -249,8 +248,55 @@ case ${selection} in
    if [ "$sub_her" = "2" ]; then bash /etc/VPS-SAMA/herramientas/tcp.sh; fi
    ;;
 4) sudo htop ;;
+5)
+   # ACTUALIZAR AUTOMÁTICO DESDE EL MENÚ PRINCIPAL
+   msg -bar
+   echo -e " \e[1;36m[+] Conectando con el servidor de GitHub de edusama79...\e[0m"
+   sleep 1
+   if wget -q --spider https://raw.githubusercontent.com/edusama79/VPS-SAMA/main/instalar.sh; then
+      echo -e " \e[1;32m[+] ¡Actualización encontrada! Bajando paquetes nuevos...\e[0m"
+      rm -rf /root/instalar.sh
+      wget -O /root/instalar.sh https://raw.githubusercontent.com/edusama79/VPS-SAMA/main/instalar.sh
+      chmod +x /root/instalar.sh
+      echo -e " \e[1;32m[+] Ejecutando instalación de fondo...\e[0m"
+      sleep 1
+      exec bash /root/instalar.sh
+   else
+      echo -e " \e[1;31m[-] Error: No se pudo conectar a GitHub.\e[0m"
+      read -p " Presione Enter para continuar..."
+   fi
+   ;;
+6)
+   # DESINSTALADOR INTEGRAL
+   msg -bar
+   echo -e " \e[1;31m🚨 ALERTA: Esto eliminará por completo el script y parará las APIs.\e[0m"
+   read -p " ¿Está seguro de que desea desinstalar VPS-SAMA? (s/n): " confirm_des
+   if [[ "$confirm_des" = "s" || "$confirm_des" = "S" ]]; then
+      echo -e " \e[1;31m[-] Deteniendo APIs del puerto 81 y monitores de fondo...\e[0m"
+      fuser -k 81/tcp >/dev/null 2>&1
+      pkill -f api_puerto81.py >/dev/null 2>&1
+      pkill -f monitor.sh >/dev/null 2>&1
+      pkill -f PDirect.py >/dev/null 2>&1
+      systemctl stop stunnel4 >/dev/null 2>&1
+      pkill -f dns-server >/dev/null 2>&1
+      
+      echo -e " \e[1;31m[-] Limpiando automatizaciones en el Crontab...\e[0m"
+      sed -i '/sama_api81/d' /etc/crontab
+      sed -i '/monitor_sama/d' /etc/crontab
+      
+      echo -e " \e[1;31m[-] Eliminando archivos, carpetas y accesos directos...\e[0m"
+      rm -rf /etc/VPS-SAMA
+      rm -rf /bin/menu /bin/sama /root/instalar.sh
+      
+      echo -e " \e[1;32m[+] ¡VPS-SAMA ha sido completamente desinstalado de su VPS!\e[0m"
+      exit 0
+   else
+      echo -e " \e[1;32m[+] Desinstalación cancelada.\e[0m"
+      read -p " Presione Enter para continuar..."
+   fi
+   ;;
 0) exit 0 ;;
 esac
 
-# Retorno automático al bucle del panel para mantener la terminal abierta
+# Retorno automático al bucle del panel
 /etc/VPS-SAMA/menu
