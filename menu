@@ -51,8 +51,9 @@ meu_ip() {
    if [[ -e /etc/VPS-SAMA/MEUIPvps ]]; then
       echo "$(cat /etc/VPS-SAMA/MEUIPvps)"
    else
-      MEU_IP=$(wget -qO- ifconfig.me)
-      echo "$MEU_IP" >/etc/VPS-SAMA/MEUIPvps
+      # Alternativa limpia que solo extrae texto plano con la IP, ignorando HTMLs
+      MEU_IP=$(curl -sS https://api.ipify.org || curl -sS https://ifconfig.me/ip || wget -qO- ipinfo.io/ip)
+      echo "$MEU_IP" | tr -d '[:space:]' > /etc/VPS-SAMA/MEUIPvps
       echo "$MEU_IP"
    fi
 }
