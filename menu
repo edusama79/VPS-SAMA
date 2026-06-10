@@ -85,7 +85,7 @@ administrar_cuentas_sama() {
    echo -e " └────────────────────────────────────────────────────────┘"
    echo -e "   [1] > NORMAL (Usuario y Contraseña tradicional)"
    echo -e "   [2] > HWID   (Bloqueo por ID único de celular)"
-   echo -e "   [3] > TOKEN  (Clave fija + Token manual como Usuario)"
+   echo -e "   [3] > TOKEN  (Clave fija + Token manual + Dueño)"
    echo -e "   [4] > REMOVER USUARIO O TOKEN DEL SISTEMA"
    echo -e "   [5] > LISTAR TODAS LAS CUENTAS Y EXPIRADOS"
    echo -e "   [0] > VOLVER AL MENÚ ANTERIOR"
@@ -114,24 +114,29 @@ administrar_cuentas_sama() {
       echo -e "\e[1;32m\n [+] Cuenta HWID vinculada con éxito hasta el $fecha_venc\e[0m"
       ;;
    3)
+      read -p " Nombre del Cliente (Para saber de quién es): " cliente_nom
       read -p " Clave Universal fija a usar para el Token: " clave_uni
       read -p " Ingrese o pegue el TOKEN manual (Usuario): " token_manual
       read -p " Días de duración para este Token: " dias
       
-      # Validar que no queden campos vacíos
+      # Reemplazar espacios vacíos en el nombre por guiones bajos
+      cliente_nom=$(echo "$cliente_nom" | sed 's/ /_/g')
+      [[ -z "$cliente_nom" ]] && cliente_nom="Sin_Nombre"
+
       if [[ -z "$clave_uni" || -z "$token_manual" || -z "$dias" ]]; then
          echo -e "\e[1;31m\n [-] Error: Ningún campo puede quedar vacío.\e[0m"
          return 0
       fi
       
-      # Crear el Token manual como usuario del sistema operativo
+      # El sistema Linux solo registra el token como credencial de red
       useradd -M -s /bin/false -e "$(date -d "$dias days" +"%Y-%m-%d")" $token_manual
       echo "$token_manual:$clave_uni" | chpasswd
       fecha_venc=$(date -d "$dias days" +"%d/%m/%Y")
       
-      # Guardar registro adaptado para lectura de la app
-      echo "$token_manual|TOKEN|$clave_uni|$fecha_venc" >> /etc/VPS-SAMA/usuarios.db
-      echo -e "\e[1;32m\n [+] ¡TOKEN MANUAL REGISTRADO CON ÉXITO! \e[0m"
+      # Guardamos el nombre del dueño al final del registro (separado por | )
+      echo "$token_manual|TOKEN|$clave_uni|$fecha_venc|$cliente_nom" >> /etc/VPS-SAMA/usuarios.db
+      echo -e "\e[1;32m\n [+] ¡TOKEN REGISTRADO CON NOMBRE EXITOSAMENTE! \e[0m"
+      echo -e "     \e[1;37mDueño / Cliente:\e[1;35m $cliente_nom \e[0m"
       echo -e "     \e[1;37mUsuario (Token):\e[1;36m $token_manual \e[0m"
       echo -e "     \e[1;37mContraseña Fija:\e[1;33m $clave_uni \e[0m"
       echo -e "     \e[1;37mVálido hasta el:\e[1;32m $fecha_venc \e[0m"
@@ -147,11 +152,13 @@ administrar_cuentas_sama() {
       echo -e "\e[1;36m┌────────────────────────────────────────────────────────┐\e[0m"
       echo -e "\e[1;36m│             BASE DE DATOS COMPLETA VPS-SAMA            │\e[0m"
       echo -e "\e[1;36m└────────────────────────────────────────────────────────┘\e[0m"
-      printf " \e[1;33m%-15s %-10s %-18s %-12s\e[0m\n" "USUARIO/TOKEN" "TIPO" "CLAVE/HWID" "VENCIMIENTO"
+      printf " \e[1;33m%-16s %-8s %-12s %-12s %-12s\e[0m\n" "USUARIO/TOKEN" "TIPO" "CLAVE/HWID" "VENCIMIENTO" "DUEÑO"
       echo " ————————————————————————————————————————————————————"
       if [ -f /etc/VPS-SAMA/usuarios.db ]; then
-          while IFS='|' read -r u t c v; do
-              printf " %-15s %-10s %-18s %-12s\n" "$u" "$t" "$c" "$v"
+          while IFS='|' read -r u t c v n; do
+              # Si no tiene nombre asignado (como cuentas normales), muestra un guión
+              [[ -z "$n" ]] && n="—"
+              printf " %-16s %-8s %-12s %-12s %-12s\n" "$u" "$t" "$c" "$v" "$n"
           done < /etc/VPS-SAMA/usuarios.db
       fi
       echo " ————————————————————————————————————————————————————"
