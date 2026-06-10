@@ -1,5 +1,7 @@
 #!/bin/bash
-#------<< SCRIPT VPS-SAMA PREMIUM >>
+# =========================================================
+#             SCRIPT CENTRAL: VPS-SAMA PREMIUM
+# =========================================================
 clear
 clear
 sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1
@@ -13,27 +15,17 @@ gren=$(tput setaf 2)
 yellow=$(tput setaf 3)
 
 SCPdir="/etc/VPS-SAMA" && [[ ! -d ${SCPdir} ]] && mkdir -p ${SCPdir}
-SCPusr="${SCPdir}/controlador"
-SCPfrm="${SCPdir}/herramientas"
-SCPinst="${SCPdir}/protocolos"
 touch /etc/VPS-SAMA/usuarios.db
 
-# PROCESADOR Y RENDIMIENTO
+# RENDIMIENTO DE MEMORIA Y PROCESADOR
 _core=$(printf '%-1s' "$(grep -c cpu[0-9] /proc/stat)")
 _usop=$(top -bn1 | sed -rn '3s/[^0-9]* ([0-9\.]+) .*/\1/p;4s/.*, ([0-9]+) .*/\1/p' | tr '\n' ' ')
-
 ram1=$(free -h | grep -i mem | awk {'print $2'})
 ram2=$(free -h | grep -i mem | awk {'print $4'})
 ram3=$(free -h | grep -i mem | awk {'print $3'})
 _usor=$(printf '%-8s' "$(free -m | awk 'NR==2{printf "%.2f%%", $3*100/$2 }')")
 
-if [[ -e /etc/bash.bashrc-bakup ]]; then
-   AutoRun="\033[1;32m[ON]"
-elif [[ -e /etc/bash.bashrc ]]; then
-   AutoRun="\033[1;31m[OFF]"
-fi
-
-# Funciones de Interfaz Estética
+# Funciones de Interfaz Estética de Líneas
 msg() {
    NEGRITO='\e[1m'
    SEMCOR='\e[0m'
@@ -41,7 +33,7 @@ msg() {
    COLOR[1]='\e[31m'     # Rojo
    COLOR[2]='\e[32m'     # Verde
    COLOR[3]='\e[33m'     # Amarillo
-   COLOR[6]='\033[1;97m' # Cyan/Blanco Brillante
+   COLOR[6]='\033[1;97m' # Cyan Brillante
    
    case $1 in
    -ne) cor="${COLOR[1]}${NEGRITO}" && echo -ne "${cor}${2}${SEMCOR}" ;;
@@ -70,7 +62,6 @@ os_system() {
    echo $system | awk '{print $1, $2}'
 }
 
-# SISTEMA DE SELECCION INTERACTIVO
 selection_fun() {
    local selection="null"
    local range
@@ -84,7 +75,7 @@ selection_fun() {
 }
 
 # =========================================================
-# CONTROLADORES DE CUENTAS AVANZADOS (NORMAL, HWID, TOKEN)
+# [1] ADMINISTRAR CUENTAS (NORMAL, HWID, TOKEN) + API APPS
 # =========================================================
 administrar_cuentas_sama() {
    clear
@@ -92,17 +83,17 @@ administrar_cuentas_sama() {
    echo -e " ┌────────────────────────────────────────────────────────┐"
    echo -e " │\e[1;36m              AGREGAR USUARIO | VPS-SAMA                \e[0m│"
    echo -e " └────────────────────────────────────────────────────────┘"
-   echo -e "   [1] > NORMAL (Usuario y Contraseña)"
-   echo -e "   [2] > HWID   (Bloqueo por ID de Teléfono)"
-   echo -e "   [3] > TOKEN  (Clave Única Autogenerada)"
-   echo -e "   [4] > REMOVER USUARIO / TOKEN"
-   echo -e "   [5] > VER LISTADO Y VENCIMIENTOS"
+   echo -e "   [1] > NORMAL (Usuario y Contraseña tradicional)"
+   echo -e "   [2] > HWID   (Bloqueo por ID único de celular)"
+   echo -e "   [3] > TOKEN  (Generar Clave única directa)"
+   echo -e "   [4] > REMOVER USUARIO O TOKEN DEL SISTEMA"
+   echo -e "   [5] > LISTAR TODAS LAS CUENTAS Y EXPIRADOS"
    echo -e "   [0] > VOLVER AL MENÚ ANTERIOR"
    msg -bar
    read -p " Seleccione una Opción [0-5]: " op_db
    
    case $op_db in
-   1) # Cuenta Estándar Normal
+   1)
       read -p " Nombre de usuario: " user
       read -p " Contraseña: " pass
       read -p " Días de duración: " dias
@@ -110,34 +101,34 @@ administrar_cuentas_sama() {
       echo "$user:$pass" | chpasswd
       fecha_venc=$(date -d "$dias days" +"%d/%m/%Y")
       echo "$user|NORMAL|$pass|$fecha_venc" >> /etc/VPS-SAMA/usuarios.db
-      echo -e "\e[1;32m\n [+] Cuenta Normal '$user' registrada con éxito.\e[0m"
+      echo -e "\e[1;32m\n [+] Cuenta Normal '$user' creada hasta el $fecha_venc\e[0m"
       ;;
-   2) # Control por hardware HWID
+   2)
       read -p " Nombre de usuario: " user
-      read -p " Pegue el HWID del dispositivo: " hwid
+      read -p " Pegue el HWID / ID del dispositivo: " hwid
       read -p " Días de duración: " dias
       useradd -M -s /bin/false -e "$(date -d "$dias days" +"%Y-%m-%d")" $user
       echo "$user:hwidsama123" | chpasswd
       fecha_venc=$(date -d "$dias days" +"%d/%m/%Y")
       echo "$user|HWID|$hwid|$fecha_venc" >> /etc/VPS-SAMA/usuarios.db
-      echo -e "\e[1;32m\n [+] Dispositivo HWID vinculado al usuario '$user'.\e[0m"
+      echo -e "\e[1;32m\n [+] Cuenta HWID vinculada con éxito hasta el $fecha_venc\e[0m"
       ;;
-   3) # Generador Dinámico de Tokens
+   3)
       token_gen=$(tr -dc 'A-Z0-9' < /dev/urandom | head -c 10)
       read -p " Días de duración para el Token: " dias
       useradd -M -s /bin/false -e "$(date -d "$dias days" +"%Y-%m-%d")" $token_gen
       echo "$token_gen:tokensama123" | chpasswd
       fecha_venc=$(date -d "$dias days" +"%d/%m/%Y")
       echo "$token_gen|TOKEN|ÚNICO|$fecha_venc" >> /etc/VPS-SAMA/usuarios.db
-      echo -e "\e[1;32m\n [+] TOKEN PREMIUM GENERADO:\e[1;36m $token_gen \e[0m (Hasta: $fecha_venc)"
+      echo -e "\e[1;32m\n [+] TOKEN GENERADO CON ÉXITO:\e[1;36m $token_gen\e[0m (Válido hasta: $fecha_venc)"
       ;;
-   4) # Eliminación de base de datos y sistema operativo
-      read -p " Ingrese el Usuario o Token a dar de baja: " user
+   4)
+      read -p " Ingrese el Usuario o Token a eliminar: " user
       userdel -f $user
       sed -i "/^$user|/d" /etc/VPS-SAMA/usuarios.db
-      echo -e "\e[1;31m[-] Removido por completo del ecosistema del servidor.\e[0m"
+      echo -e "\e[1;31m[-] Eliminado por completo de la base de datos y del VPS.\e[0m"
       ;;
-   5) # Visualización de registros de cuentas
+   5)
       clear
       echo -e "\e[1;36m┌────────────────────────────────────────────────────────┐\e[0m"
       echo -e "\e[1;36m│             BASE DE DATOS COMPLETA VPS-SAMA            │\e[0m"
@@ -157,22 +148,25 @@ administrar_cuentas_sama() {
    read -p " Presione Enter para finalizar..."
 }
 
-# RENDERIZADO DEL MENÚ EN LA TERMINAL
+# =========================================================
+#             INTERFAZ GRÁFICA PRINCIPAL (TERMINAL)
+# =========================================================
 clear
 msg -bar
 msg -tit
 msg -bar
 title=$(cat ${SCPdir}/message.txt 2>/dev/null || echo "VPS-SAMA PREMIUM")
-echo -e "      \e[1;36mSlogan Activo: $title\e[0m"
+echo -e "      \e[1;36mSlogan / Marca: $title\e[0m"
 msg -bar
-echo -e "      \033[1;37mIP LOCAL: \033[1;93m$(meu_ip)     \033[1;37mSISTEMA: \033[1;96m$(os_system)"
+echo -e "      \033[1;37mIP VPS: \033[1;93m$(meu_ip)     \033[1;37mSISTEMA O.S: \033[1;96m$(os_system)"
+echo -e "      \033[1;37mNÚCLEOS CPU: \033[1;32m$_core       \033[1;37mUSO RAM: \033[1;32m$_usor"
 msg -bar
 
 echo -ne " \033[1;32m [1] \033[1;31m=>> \033[1;37mADMINISTRAR CUENTAS (NORMAL / HWID / TOKEN)\n"
-echo -ne " \033[1;32m [2] \033[1;31m=>> \033[1;37mINSTALADORES DE PROTOCOLOS Y PUERTOS\n"
-echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mMONITOR DE PUERTOS ACTIVOS (MONITOR LIST)\n"
-echo -ne " \033[1;32m [4] \033[1;31m=>> \033[1;37mMONITOR DE PROCESOS DEL SISTEMA (HTOP)\n"
-echo -ne " \033[1;32m [0] \033[1;31m=>> \033[1;41m SALIR DEL PANEL \033[0m\n"
+echo -ne " \033[1;32m [2] \033[1;31m=>> \033[1;37mINSTALADORES DE PROTOCOLOS Y TÚNELES\n"
+echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mHERRAMIENTAS DE RED, PUERTOS Y OPTIMIZACIÓN BBR\n"
+echo -ne " \033[1;32m [4] \033[1;31m=>> \033[1;37mMONITOR DE PROCESOS EN TIEMPO REAL (HTOP)\n"
+echo -ne " \033[1;32m [0] \033[1;31m=>> \033[1;41m SALIR DEL PANEL CONTROL \033[0m\n"
 msg -bar
 
 selection=$(selection_fun 4)
@@ -183,18 +177,32 @@ case ${selection} in
    echo -e "\e[1;33m ————————————————————————————————————————————————————\e[0m"
    echo -e "         \e[1;36m⚙️ SUB-MENÚ INTERACTIVO DE PROTOCOLOS ⚙️\e[0m"
    echo -e "\e[1;33m ————————————————————————————————————————————————————\e[0m"
-   echo -e "  \e[1;32m[1]\e[1;37m > Configurar SOCKS PYTHON / WEBSOCKET"
-   echo -e "  \e[1;32m[2]\e[1;37m > Configurar SSL / TLS (STUNNEL4)"
-   echo -e "  \e[1;32m[0]\e[1;37m > Cancelar y Volver"
+   echo -e "  \e[1;32m[1]\e[1;37m > Configurar Proxy SOCKS PYTHON / WEBSOCKET"
+   echo -e "  \e[1;32m[2]\e[1;37m > Configurar Servidor SSL / TLS (STUNNEL4)"
+   echo -e "  \e[1;32m[3]\e[1;37m > Configurar Servidor SLOW DNS (Método Sin Saldo)"
+   echo -e "  \e[1;32m[0]\e[1;37m > Cancelar y Volver al Menú Central"
    echo -e "\e[1;33m ————————————————————————————————————————————————————\e[0m"
    read -p " Seleccione una opción: " sub_op
    if [ "$sub_op" = "1" ]; then bash /etc/VPS-SAMA/protocolos/sockspy.sh; fi
    if [ "$sub_op" = "2" ]; then bash /etc/VPS-SAMA/protocolos/ssl.sh; fi
+   if [ "$sub_op" = "3" ]; then bash /etc/VPS-SAMA/protocolos/slowdns.sh; fi
    ;;
-3) bash /etc/VPS-SAMA/herramientas/ports.sh ;;
+3) 
+   clear
+   echo -e "\e[1;33m ————————————————————————————————————————————————————\e[0m"
+   echo -e "         \e[1;36m⚙️ SUB-MENÚ DE HERRAMIENTAS Y AJUSTES RED ⚙️\e[0m"
+   echo -e "\e[1;33m ————————————————————————————————————————————————————\e[0m"
+   echo -e "  \e[1;32m[1]\e[1;37m > Ver Lista de Puertos Activos (MONITOR LIST)"
+   echo -e "  \e[1;32m[2]\e[1;37m > Optimizar Núcleo Linux y Activar Acelerador TCP BBR"
+   echo -e "  \e[1;32m[0]\e[1;37m > Cancelar y Volver al Menú Central"
+   echo -e "\e[1;33m ————————————————————————————————————————————————————\e[0m"
+   read -p " Seleccione una opción: " sub_her
+   if [ "$sub_her" = "1" ]; then bash /etc/VPS-SAMA/herramientas/ports.sh; fi
+   if [ "$sub_her" = "2" ]; then bash /etc/VPS-SAMA/herramientas/tcp.sh; fi
+   ;;
 4) sudo htop ;;
 0) exit 0 ;;
 esac
 
-# Auto-retorno al bucle para que el menú no se cierre solo
+# Retorno automático al bucle del panel para mantener la terminal abierta
 /etc/VPS-SAMA/menu
