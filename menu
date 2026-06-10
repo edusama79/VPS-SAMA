@@ -95,8 +95,8 @@ administrar_cuentas_sama() {
    echo -ne " \033[1;32m [2] \033[1;31m=>> \033[1;37mHWID   (Bloqueo por ID único de celular)\n"
    echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mTOKEN  (Crear ingresando Token manual + Dueño)\n"
    echo -ne " \033[1;32m [4] \033[1;31m=>> \033[1;37mREMOVER USUARIO O TOKEN DEL SISTEMA\n"
-   echo -ne " \033[1;32m [5] \033[1;31m=>> \033[1;37mLISTAR TODAS LAS CUENTAS REGISTRADAS\n"
-   echo -ne " \033[1;32m [6] \033[1;31m=>> \033[1;37mEDITAR / CAMBIAR LA CLAVE TOKEN FIJA\n"
+   echo -ne " \033[1;32m [5] \033[1;37m=>> \033[1;37mLISTAR TODAS LAS CUENTAS REGISTRADAS\n"
+   echo -ne " \033[1;32m [6] \033[1;37m=>> \033[1;37mEDITAR / CAMBIAR LA CLAVE TOKEN FIJA\n"
    echo -ne " \033[1;32m [0] \033[1;31m=>> \033[1;41m VOLVER AL MENÚ CENTRAL \033[0m\n"
    msg -bar
    
@@ -128,7 +128,6 @@ administrar_cuentas_sama() {
       ;;
    3)
       msg -bar
-      # Agregadas las flechitas rojas estéticas para pedir los datos
       echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mNombre del Cliente (Para saber de quién es): "
       read cliente_nom
       echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mIngrese o pegue el TOKEN manual (Usuario): "
@@ -159,11 +158,60 @@ administrar_cuentas_sama() {
       read -p " Presione Enter para continuar..."
       ;;
    4)
+      # =========================================================
+      #        [4] REMOVER USUARIO INTERACTIVO CON LISTA
+      # =========================================================
+      clear
       msg -bar
-      read -p " Ingrese el Usuario o Token a eliminar: " user
-      userdel -f $user
-      sed -i "/^$user|/d" /etc/VPS-SAMA/usuarios.db
-      echo -e "\e[1;31m[-] Eliminado por completo de la base de datos y del VPS.\e[0m"
+      echo -e "         \e[1;31m🚨 GESTOR DE BAJAS DE CUENTAS / TOKENS 🚨\e[0m"
+      msg -bar
+      
+      if [ ! -f /etc/VPS-SAMA/usuarios.db ] || [ ! -s /etc/VPS-SAMA/usuarios.db ]; then
+         echo -e " \e[1;31m[-] No hay usuarios registrados en el sistema actualmente.\e[0m"
+         msg -bar
+         read -p " Presione Enter para continuar..."
+         return 0
+      fi
+
+      echo -e " \e[1;33mSeleccione el número del usuario que desea eliminar:\e[0m"
+      echo " ————————————————————————————————————————————————————"
+      
+      # Leer y enumerar dinámicamente los usuarios de la base de datos
+      local i=1
+      declare -A lista_users
+      
+      while IFS='|' read -r u t c v n; do
+         [[ -z "$n" ]] && n="—"
+         printf "  \e[1;32m[%02d]\e[1;31m =>> \e[1;37m%-15s \e[1;33m%-8s \e[1;35m(Dueño: %s)\e[0m\n" "$i" "$u" "$t" "$n"
+         lista_users[$i]="$u"
+         i=$((i+1))
+      done < /etc/VPS-SAMA/usuarios.db
+      
+      echo " ————————————————————————————————————————————————————"
+      echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mIngrese el número del usuario a borrar: "
+      read num_elim
+      
+      # Validar que la opción elegida sea un número válido dentro del rango
+      local usuario_seleccionado="${lista_users[$num_elim]}"
+      
+      if [[ -z "$usuario_seleccionado" ]]; then
+         echo -e "\e[1;31m\n [-] Selección inválida. Número no encontrado.\e[0m"
+         read -p " Presione Enter para continuar..."
+         return 0
+      fi
+      
+      msg -bar
+      echo -e " \e[1;31m[!] Va a eliminar a:\e[1;37m $usuario_seleccionado \e[0m"
+      echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;33m¿Está completamente seguro de eliminarlo? (s/n): \033[0m"
+      read confirm_user
+      
+      if [[ "$confirm_user" = "s" || "$confirm_user" = "S" ]]; then
+         userdel -f "$usuario_seleccionado" >/dev/null 2>&1
+         sed -i "/^$usuario_seleccionado|/d" /etc/VPS-SAMA/usuarios.db
+         echo -e "\e[1;32m\n [+] El usuario '$usuario_seleccionado' fue removido con éxito.\e[0m"
+      else
+         echo -e "\e[1;32m\n [+] Operación cancelada. El usuario no fue alterado.\e[0m"
+      fi
       read -p " Presione Enter para continuar..."
       ;;
    5)
