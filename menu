@@ -69,6 +69,21 @@ selection_fun() {
    echo $selection
 }
 
+# =========================================================
+# FUNCIONES DE VERIFICACIÓN DE ESTADO EN VIVO [ON] / [OFF]
+# =========================================================
+check_status() {
+   case $1 in
+      v2ray) [[ $(systemctl is-active xray 2>/dev/null) == "active" ]] && echo -e "\e[1;32m[ON]\e[0m" || echo -e "\e[1;31m[OFF]\e[0m" ;;
+      websocket) [[ $(screen -list | grep -q "ws_sama") ]] || pkill -0 -f PDirect.py 2>/dev/null && echo -e "\e[1;32m[ON]\e[0m" || echo -e "\e[1;31m[OFF]\e[0m" ;;
+      ssl) [[ $(systemctl is-active stunnel4 2>/dev/null) == "active" || $(netstat -tuln | grep -q "$(cat /etc/stunnel/stunnel.conf 2>/dev/null | grep 'accept =' | awk '{print $3}')") ]] && echo -e "\e[1;32m[ON]\e[0m" || echo -e "\e[1;31m[OFF]\e[0m" ;;
+      dns) [[ -f /etc/VPS-SAMA/protocolos/slowdns.sh && $(pgrep -f "dns-server" >/dev/null) ]] && echo -e "\e[1;32m[ON]\e[0m" || echo -e "\e[1;31m[OFF]\e[0m" ;;
+      torrent) [[ $(iptables -L FORWARD -n | grep -E "torrent|bitget") ]] && echo -e "\e[1;32m[ON]\e[0m" || echo -e "\e[1;31m[OFF]\e[0m" ;;
+      cron_ram) [[ $(grep -q "reboot" /etc/crontab) ]] && echo -e "\e[1;32m[ON]\e[0m" || echo -e "\e[1;31m[OFF]\e[0m" ;;
+      apache) [[ $(systemctl is-active apache2 2>/dev/null) == "active" ]] && echo -e "\e[1;32m[ON]\e[0m" || echo -e "\e[1;31m[OFF]\e[0m" ;;
+   esac
+}
+
 rebuild_v2ray_config() {
    local port_v2ray=$(cat /etc/VPS-SAMA/v2ray.port 2>/dev/null || echo "4433")
    [[ ! -f /usr/local/etc/xray/config.json ]] && return
@@ -111,7 +126,7 @@ ejecutar_limpieza_vencidos() {
 }
 
 # =========================================================
-# [1] GESTIÓN DE USUARIOS CRUDA / IGUAL A LATAM VPS
+# [1] GESTIÓN DE USUARIOS LATAM VPS (CRUDA)
 # =========================================================
 administrar_cuentas_sama() {
    clear && msg -bar
@@ -144,7 +159,7 @@ administrar_cuentas_sama() {
       echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mDias de duracion: " && read dias
       useradd -M -s /bin/false -e "$(date -d "$dias days" +"%Y-%m-%d")" $user && echo "$user:$pass" | chpasswd
       echo "$user|NORMAL|$pass|$(date -d "$dias days" +"%d/%m/%Y")" >> /etc/VPS-SAMA/usuarios.db
-      echo -e "\e[1;32m\n [+] Usuario registrado con exito.\e[0m" && read -p " Presione Enter para continuar..." ;;
+      echo -e "\e[1;32m\n [+] Usuario registrado con exito.\e[0m" && read -p " Presione Enter..." ;;
    2)
       msg -bar
       while true; do
@@ -155,7 +170,7 @@ administrar_cuentas_sama() {
       echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mDias de duracion: " && read dias
       useradd -M -s /bin/false -e "$(date -d "$dias days" +"%Y-%m-%d")" $user && echo "$user:hwidsama123" | chpasswd
       echo "$user|HWID|$hwid|$(date -d "$dias days" +"%d/%m/%Y")" >> /etc/VPS-SAMA/usuarios.db
-      echo -e "\e[1;32m\n [+] Usuario HWID registrado con exito.\e[0m" && read -p " Presione Enter para continuar..." ;;
+      echo -e "\e[1;32m\n [+] Usuario HWID registrado con exito.\e[0m" && read -p " Presione Enter..." ;;
    3)
       msg -bar
       echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mNombre del Cliente / Dueno: " && read cliente_nom
@@ -168,10 +183,10 @@ administrar_cuentas_sama() {
       cliente_nom=$(echo "$cliente_nom" | sed 's/ /_/g') && [[ -z "$cliente_nom" ]] && cliente_nom="Sin_Nombre"
       useradd -M -s /bin/false -e "$(date -d "$dias days" +"%Y-%m-%d")" $token_manual && echo "$token_manual:$clave_uni" | chpasswd
       echo "$token_manual|TOKEN|$clave_uni|$(date -d "$dias days" +"%d/%m/%Y")|$cliente_nom" >> /etc/VPS-SAMA/usuarios.db
-      echo -e "\e[1;32m\n [+] ¡TOKEN REGISTRADO CON EXITO EN LA RED!\e[0m" && read -p " Presione Enter para continuar..." ;;
+      echo -e "\e[1;32m\n [+] ¡TOKEN REGISTRADO CON EXITO!\e[0m" && read -p " Presione Enter..." ;;
    4)
       clear && msg -bar && echo -e "         \e[1;31m🚨 GESTOR DE BAJAS DE CUENTAS / TOKENS 🚨\e[0m" && msg -bar
-      if [[ ! -s /etc/VPS-SAMA/usuarios.db ]]; then echo -e " \e[1;31m[-] No hay usuarios registrados.\e[0m" && msg -bar && read -p " Presione Enter para continuar..." && return 0; fi
+      if [[ ! -s /etc/VPS-SAMA/usuarios.db ]]; then echo -e " \e[1;31m[-] No hay usuarios registrados.\e[0m" && msg -bar && read -p " Presione Enter..." && return 0; fi
       local i=1 && declare -A lista_users
       while IFS='|' read -r u t c v n; do
          printf "  \e[1;32m[%02d]\e[1;31m =>> \e[1;37m%-15s \e[1;33m%-8s \e[1;35m(Dueno: %s)\e[0m\n" "$i" "$u" "$t" "$n"
@@ -180,56 +195,69 @@ administrar_cuentas_sama() {
       echo " ————————————————————————————————————————————————————"
       echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mSeleccione el numero a dar de baja: " && read num_elim
       local usuario_seleccionado="${lista_users[$num_elim]}"
-      if [[ -z "$usuario_seleccionado" ]]; then echo -e "\e[1;31m\n [-] Seleccion invalida.\e[0m" && read -p " Presione Enter para continuar..." && return 0; fi
+      if [[ -z "$usuario_seleccionado" ]]; then echo -e "\e[1;31m\n [-] Seleccion invalida.\e[0m" && read -p " Presione Enter..." && return 0; fi
       msg -bar && echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;33m¿Seguro de eliminar a $usuario_seleccionado? (s/n): \033[0m" && read confirm_user
       if [[ "$confirm_user" = "s" || "$confirm_user" = "S" ]]; then
          userdel -f "$usuario_seleccionado" >/dev/null 2>&1
          sed -i "/^$usuario_seleccionado|/d" /etc/VPS-SAMA/usuarios.db
          echo -e "\e[1;32m\n [+] Removido correctamente.\e[0m"
       fi
-      read -p " Presione Enter para continuar..." ;;
+      read -p " Presione Enter..." ;;
    5)
       clear && echo -e "\e[1;36m┌────────────────────────────────────────────────────────┐\e[0m"
       printf " \e[1;33m%-16s %-8s %-12s %-12s %-12s\e[0m\n" "USUARIO/TOKEN" "TIPO" "CLAVE" "VENCIMIENTO" "DUENO"
       echo " ————————————————————————————————————————————————————"
       while IFS='|' read -r u t c v n; do [[ -z "$n" ]] && n="—"; printf " %-16s %-8s %-12s %-12s %-12s\n" "$u" "$t" "$c" "$v" "$n"; done < /etc/VPS-SAMA/usuarios.db
-      echo " ————————————————————————————————————————————————————" && read -p " Presione Enter para continuar..." ;;
+      echo " ————————————————————————————————————————————————————" && read -p " Presione Enter..." ;;
    6)
       msg -bar && echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mIngrese la NUEVA Contrasena Token Global (Max 16): " && read nueva_key
       [[ ! -z "$nueva_key" && ${#nueva_key} -le 16 ]] && echo "$nueva_key" > /etc/VPS-SAMA/token.key && echo -e "\e[1;32m\n [+] Contrasena actualizada.\e[0m" || echo -e "\e[1;31m[!] Error en el largo.\e[0m"
-      read -p " Presione Enter para continuar..." ;;
+      read -p " Presione Enter..." ;;
    esac
 }
 
 # =========================================================
-# [2] MOTOR EXCLUSIVO V2RAY / XRAY CON PUERTO ASIGNABLE
+# [2] INTERRUPTOR EXCLUSIVO V2RAY / XRAY
 # =========================================================
 gestionar_v2ray_sama() {
    clear && msg -bar
    echo -e "      \e[1;36m| #-#-► ⚙️ CONTROL V2RAY / XRAY WS ⚙️ ◄-#-# |\e[0m"
    msg -bar
-   echo -ne " \033[1;32m [1] \033[1;31m=>> \033[1;37mASIGNAR/CAMBIAR EL PUERTO EN VIVO DE V2RAY\n"
-   echo -ne " \033[1;32m [2] \033[1;31m=>> \033[1;37mAGREGAR NUEVO USUARIO V2RAY (UUID)\n"
-   echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mELIMINAR USUARIO V2RAY DEL PANEL\n"
-   echo -ne " \033[1;32m [4] \033[1;37m=>> \033[1;37mVER USUARIOS ACTIVOS Y LINKS CONFIG\n"
+   echo -ne " \033[1;32m [1] \033[1;31m=>> \033[1;37mENCENDER / APAGAR CORE V2RAY (INTERRUPTOR) $(check_status v2ray)\n"
+   echo -ne " \033[1;32m [2] \033[1;31m=>> \033[1;37mASIGNAR/CAMBIAR EL PUERTO EN VIVO\n"
+   echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mAGREGAR NUEVO USUARIO V2RAY (UUID)\n"
+   echo -ne " \033[1;32m [4] \033[1;31m=>> \033[1;37mELIMINAR USUARIO V2RAY DEL PANEL\n"
+   echo -ne " \033[1;32m [5] \033[1;37m=>> \033[1;37mVER USUARIOS ACTIVOS Y LINKS CONFIG\n"
    echo -ne " \033[1;32m [0] \033[1;31m=>> \033[1;41m VOLVER AL MENÚ CENTRAL \033[0m\n"
    msg -bar
    
-   local op_v2=$(selection_fun 4)
+   local op_v2=$(selection_fun 5)
    case $op_v2 in
    1)
       msg -bar
-      local p_actual=$(cat /etc/VPS-SAMA/v2ray.port 2>/dev/null || echo "4433")
-      echo -e " \e[1;37mPuerto V2Ray actual:\e[1;33m $p_actual\e[0m"
-      echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mIngrese el NUEVO puerto que desea para V2Ray: "
-      read nuevo_pv2
-      if [[ ! -z "$nuevo_pv2" ]]; then
-         echo "$nuevo_pv2" > /etc/VPS-SAMA/v2ray.port
+      if [[ $(systemctl is-active xray 2>/dev/null) == "active" ]]; then
+         systemctl stop xray >/dev/null 2>&1
+         systemctl disable xray >/dev/null 2>&1
+         echo -e " \e[1;31m[-] Core V2Ray Apagado por completo [OFF].\e[0m"
+      else
+         [[ ! -f /usr/local/bin/xray ]] && bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install --beta >/dev/null 2>&1
+         systemctl enable xray >/dev/null 2>&1
          rebuild_v2ray_config
-         echo -e " \e[1;32m[+] Puerto asignado y Xray reiniciado.\e[0m"
+         echo -e " \e[1;32m[+] Core V2Ray Iniciado con éxito [ON].\e[0m"
       fi
       read -p " Enter..." ;;
    2)
+      msg -bar
+      local p_actual=$(cat /etc/VPS-SAMA/v2ray.port 2>/dev/null || echo "4433")
+      echo -e " \e[1;37mPuerto V2Ray actual:\e[1;33m $p_actual\e[0m"
+      echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mIngrese el NUEVO puerto que desea para V2Ray: " && read nuevo_pv2
+      if [[ ! -z "$nuevo_pv2" ]]; then
+         echo "$nuevo_pv2" > /etc/VPS-SAMA/v2ray.port
+         rebuild_v2ray_config
+         echo -e " \e[1;32m[+] Puerto asignado y Xray sincronizado.\e[0m"
+      fi
+      read -p " Enter..." ;;
+   3)
       msg -bar
       echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mNombre del cliente para V2Ray: " && read v2user
       echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mDías de duración: " && read v2dias
@@ -244,7 +272,7 @@ gestionar_v2ray_sama() {
       echo -e "\e[1;32m\n [+] ¡USUARIO V2RAY REGISTRADO! \e[0m"
       echo -e "     \e[1;37mLink listo:\e[1;33m $link_v2ray \e[0m"
       read -p " Presione Enter..." ;;
-   3)
+   4)
       msg -bar
       if [[ ! -s /etc/VPS-SAMA/v2ray_usuarios.db ]]; then echo -e " \e[1;31m[-] No hay usuarios.\e[0m" && read -p " Enter..." && return 0; fi
       local c=1 && declare -A v2_list
@@ -260,7 +288,7 @@ gestionar_v2ray_sama() {
          echo -e "\e[1;31m[-] Removido de la red.\e[0m"
       fi
       read -p " Enter..." ;;
-   4)
+   5)
       clear && msg -bar && echo -e "         \e[1;36m📋 LISTADO DE LLAVES V2RAY ACTIVAS 📋\e[0m" && msg -bar
       local my_ip=$(meu_ip)
       local current_v2port=$(cat /etc/VPS-SAMA/v2ray.port 2>/dev/null || echo "4433")
@@ -272,59 +300,188 @@ gestionar_v2ray_sama() {
    esac
 }
 
-# ... [El resto del submenú de herramientas y el menú principal siguen estables abajo] ...
-# [El selector final llamará a cada función perfectamente]
+# =========================================================
+# [3] INTERRUPTORES DE PROTOCOLOS (SOCKS / SSL / DNS)
+# =========================================================
+protocolos_dinamicos_sama() {
+   clear && msg -bar
+   echo -e "         \e[1;36m⚙️ CONTROL INDEPENDIENTE DE PROTOCOLOS ⚙️\e[0m"
+   msg -bar
+   echo -e "  \e[1;32m[1]\e[1;37m > Proxy SOCKS PYTHON / WEBSOCKET ————> $(check_status websocket)"
+   echo -e "  \e[1;32m[2]\e[1;37m > Servidor SSL / TLS (STUNNEL4) —————> $(check_status ssl)"
+   echo -e "  \e[1;32m[3]\e[1;37m > Servidor SLOW DNS (Método Sin Saldo) —> $(check_status dns)"
+   echo -e "  \e[1;32m[0]\e[1;37m > Volver al Menú Central"
+   msg -bar
+   read -p " Seleccione una opción: " sub_op
+   
+   if [[ "$sub_op" = "1" ]]; then
+      msg -bar
+      if [[ $(check_status websocket) == *"[ON]"* ]]; then
+         pkill -f PDirect.py
+         echo -e " \e[1;31m[-] WebSocket Detenido [OFF].\e[0m"
+      else
+         echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mIngrese el PUERTO para abrir WebSocket: " && read p_ws
+         [[ ! -z "$p_ws" ]] && screen -dmS ws_sama python3 /etc/VPS-SAMA/protocolos/PDirect.py $p_ws && echo -e " \e[1;32m[+] WebSocket encendido [ON] en el puerto: $p_ws\e[0m"
+      fi
+      read -p " Enter..."
+   fi
+   
+   if [[ "$sub_op" = "2" ]]; then
+      msg -bar
+      if [[ $(check_status ssl) == *"[ON]"* ]]; then
+         systemctl stop stunnel4 >/dev/null 2>&1
+         systemctl disable stunnel4 >/dev/null 2>&1
+         echo -e " \e[1;31m[-] Servicio SSL / Stunnel4 Apagado [OFF].\e[0m"
+      else
+         echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mIngrese el PUERTO para abrir SSL (Stunnel): " && read p_ssl
+         if [[ ! -z "$p_ssl" ]]; then
+            apt-get install stunnel4 -y >/dev/null 2>&1
+            cat <<EOF > /etc/stunnel/stunnel.conf
+pid = /var/run/stunnel4.pid
+cert = /etc/stunnel/stunnel.pem
+[ssh]
+accept = ${p_ssl}
+connect = 127.0.0.1:22
+EOF
+            systemctl enable stunnel4 >/dev/null 2>&1
+            systemctl start stunnel4 >/dev/null 2>&1
+            echo -e " \e[1;32m[+] SSL / TLS activado [ON] en el puerto: $p_ssl\e[0m"
+         fi
+      fi
+      read -p " Enter..."
+   fi
+   
+   if [[ "$sub_op" = "3" ]]; then
+      if [[ $(check_status dns) == *"[ON]"* ]]; then
+         pkill -f "dns-server" >/dev/null 2>&1
+         echo -e " \e[1;31m[-] SlowDNS Apagado [OFF].\e[0m" && read -p " Enter..."
+      else
+         bash /etc/VPS-SAMA/protocolos/slowdns.sh
+      fi
+   fi
+}
+
+# =========================================================
+# [4] SEGURIDAD AVANZADA E INTERRUPTOR CRON / APACHE
+# =========================================================
+herramientas_avanzadas_sama() {
+   clear && msg -bar
+   echo -e "         \e[1;36m⚙️ SUB-MENÚ DE AJUSTES Y HERRAMIENTAS ⚙️\e[0m"
+   msg -bar
+   echo -e "  \e[1;32m[1]\e[1;37m > Ver Lista de Puertos Activos (MONITOR LIST)"
+   echo -e "  \e[1;32m[2]\e[1;37m > Optimizar Sistema y Activar Acelerador TCP BBR"
+   echo -e "  \e[1;32m[3]\e[1;37m > Bloquear Descargas Torrent / P2P ————————> $(check_status torrent)"
+   echo -e "  \e[1;32m[4]\e[1;37m > Reinicio Nocturno de RAM (3:00 AM) ——————> $(check_status cron_ram)"
+   echo -e "  \e[1;32m[5]\e[1;37m > Cambiar Slogan / Título del Panel Control"
+   echo -e "  \e[1;32m[6]\e[1;37m > Verificador Web de Vencimientos (Apache) —> $(check_status apache)"
+   echo -e "  \e[1;32m[0]\e[1;37m > Volver al Menú Principal"
+   msg -bar
+   read -p " Seleccione una opción: " sub_her
+   
+   case $sub_her in
+   1) bash /etc/VPS-SAMA/herramientas/ports.sh ;;
+   2) bash /etc/VPS-SAMA/herramientas/tcp.sh ;;
+   3)
+      clear && msg -bar
+      if [[ $(check_status torrent) == *"[ON]"* ]]; then
+         iptables -D FORWARD -m string --algo bm --string "bitget" -j DROP >/dev/null 2>&1
+         iptables -D FORWARD -m string --algo bm --string "torrent" -j DROP >/dev/null 2>&1
+         echo -e " \e[1;31m[-] Filtro Torrent Removido [OFF]. Permitiendo tráfico P2P.\e[0m"
+      else
+         iptables -A FORWARD -m string --algo bm --string "bitget" -j DROP
+         iptables -A FORWARD -m string --algo bm --string "torrent" -j DROP
+         echo -e "\e[1;32m[+] Firewall Anti-Torrents Activado [ON].\e[0m"
+      fi
+      read -p " Enter..." ;;
+   4)
+      clear && msg -bar
+      if [[ $(check_status cron_ram) == *"[ON]"* ]]; then
+         sed -i '/reboot/d' /etc/crontab
+         echo -e "\e[1;31m[-] Tarea de reinicio automático removida [OFF].\e[0m"
+      else
+         echo "0 3 * * * root /sbin/reboot" >> /etc/crontab
+         echo -e "\e[1;32m[+] Tarea Cron asignada [ON]. El VPS se limpiará a las 3:00 AM.\e[0m"
+      fi
+      read -p " Enter..." ;;
+   5)
+      clear && msg -bar
+      read -p " Ingrese el nuevo nombre/marca para su Panel: " nuevo_slogan
+      [[ ! -z "$nuevo_slogan" ]] && echo "$nuevo_slogan" > /etc/VPS-SAMA/message.txt
+      echo -e "\e[1;32m[+] Slogan cambiado.\e[0m" && read -p " Enter..." ;;
+   6)
+      clear && msg -bar
+      if [[ $(check_status apache) == *"[ON]"* ]]; then
+         systemctl stop apache2 >/dev/null 2>&1
+         systemctl disable apache2 >/dev/null 2>&1
+         sed -i '/limpieza_vencidos/d' /etc/crontab
+         echo -e "\e[1;31m[-] Monitor Web Apache Desactivado y Purgado [OFF].\e[0m"
+      else
+         echo -e "    \e[1;36m⚙️ INSTALADOR PANEL DE VENCIMIENTO EXCLUSIVO ⚙️\e[0m"
+         msg -bar
+         echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mIngrese el puerto web a abrir (Recomendado: 81): " && read p_web
+         [[ -z "$p_web" ]] && p_web="81"
+         apt-get install apache2 -y >/dev/null 2>&1
+         sed -i "s/Listen 80/Listen ${p_web}/g" /etc/apache2/ports.conf
+         systemctl enable apache2 >/dev/null 2>&1
+         systemctl start apache2 >/dev/null 2>&1
+         sed -i '/limpieza_vencidos/d' /etc/crontab
+         echo "0 * * * * root /bin/menu --cron" >> /etc/crontab
+         echo -e "\e[1;32m\n [+] ¡SERVICIO DE VENCIMIENTOS CORRIENDO [ON]!\e[0m"
+         echo -e "     \e[1;37mPuerto Abierto:\e[1;36m $p_web\e[0m"
+      fi
+      read -p " Enter..." ;;
+   esac
+}
+
+# =========================================================
+#             INTERFAZ GRÁFICA PRINCIPAL (TERMINAL)
+# =========================================================
+if [[ "$1" = "--cron" ]]; then
+   ejecutar_limpieza_vencidos
+   exit 0
+fi
+
+clear && msg -bar && msg -tit && msg -bar
+title=$(cat ${SCPdir}/message.txt)
+echo -e "      \e[1;36mSlogan / Marca: $title\e[0m"
+msg -bar
+echo -e "      \033[1;37mIP VPS: \033[1;93m$(meu_ip)     \033[1;37mSISTEMA O.S: \033[1;96m$(os_system)"
+echo -e "      \033[1;37mNÚCLEOS CPU: \033[1;32m$_core       \033[1;37mUSO RAM: \033[1;32m$_usor"
+msg -bar
+
+echo -ne " \033[1;32m [1] \033[1;31m=>> \033[1;37mADMINISTRAR CUENTAS SSH / TOKENS PREMIUM\n"
+echo -ne " \033[1;32m [2] \033[1;31m=>> \033[1;37mGESTIONAR CUENTAS TÚNELES V2RAY / XRAY ——> $(check_status v2ray)\n"
+echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mAPERTURA MANUAL DE PUERTOS (INTERRUPTORES PROTOCOLOS)\n"
+echo -ne " \033[1;32m [4] \033[1;37m=>> \033[1;37mHERRAMIENTAS DE RED, TORRENT, REBOOT Y SEGURIDAD\n"
+echo -ne " \033[1;32m [5] \033[1;35m=>> \033[1;35mACTUALIZAR PANEL E INSTALADORES CORE O.S\n"
+echo -ne " \033[1;32m [6] \033[1;31m=>> \033[1;31mDESINSTALAR SCRIPT COMPLETAMENTE DEL VPS\n"
+echo -ne " \033[1;32m [0] \033[1;31m=>> \033[1;41m SALIR DEL PANEL CONTROL \033[0m\n"
+msg -bar
 
 selection=$(selection_fun 6)
 case ${selection} in
 1) administrar_cuentas_sama ;;
 2) gestionar_v2ray_sama ;;
-3) 
-   clear && msg -bar && echo -e "         \e[1;36m⚙️ CONTROL INDEPENDIENTE DE PROTOCOLOS ⚙️\e[0m" && msg -bar
-   echo -e "  \e[1;32m[1]\e[1;37m > Configurar Proxy SOCKS PYTHON / WEBSOCKET"
-   echo -e "  \e[1;32m[2]\e[1;37m > Configurar Servidor SSL / TLS (STUNNEL4)"
-   echo -e "  \e[1;32m[3]\e[1;37m > Configurar Servidor SLOW DNS (Método Sin Saldo)"
-   echo -e "  \e[1;32m[0]\e[1;37m > Volver al Menú Central"
-   msg -bar && read -p " Seleccione una opción: " sub_op
-   if [[ "$sub_op" = "1" ]]; then
-      msg -bar && echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mIngrese el PUERTO para WebSocket: " && read p_ws
-      [[ ! -z "$p_ws" ]] && pkill -f PDirect.py && screen -dmS ws_sama python3 /etc/VPS-SAMA/protocolos/PDirect.py $p_ws
-   fi
-   if [[ "$sub_op" = "2" ]]; then
-      msg -bar && echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mIngrese el PUERTO para SSL (Stunnel): " && read p_ssl
-      [[ ! -z "$p_ssl" ]] && systemctl stop stunnel4 >/dev/null 2>&1 && echo -e "pid = /var/run/stunnel4.pid\ncert = /etc/stunnel/stunnel.pem\n[ssh]\naccept = ${p_ssl}\nconnect = 127.0.0.1:22" > /etc/stunnel/stunnel.conf && systemctl start stunnel4 >/dev/null 2>&1
-   fi
-   [[ "$sub_op" = "3" ]] && bash /etc/VPS-SAMA/protocolos/slowdns.sh ;;
-4)
-   clear && msg -bar && echo -e "         \e[1;36m⚙️ SUB-MENÚ DE AJUSTES Y HERRAMIENTAS ⚙️\e[0m" && msg -bar
-   echo -e "  \e[1;32m[1]\e[1;37m > Ver Lista de Puertos Activos (MONITOR LIST)"
-   echo -e "  \e[1;32m[2]\e[1;37m > Optimizar Sistema y Activar Acelerador TCP BBR"
-   echo -e "  \e[1;32m[3]\e[1;37m > Bloquear Descargas Torrent / P2P (Anti-Bajas)"
-   echo -e "  \e[1;32m[4]\e[1;37m > Programar Reinicio Nocturno de RAM (3:00 AM)"
-   echo -e "  \e[1;32m[5]\e[1;37m > Cambiar Slogan / Título del Panel Control"
-   echo -e "  \e[1;32m[6]\e[1;37m > Instalar Verificador Web de Vencimientos (Apache)"
-   msg -bar && read -p " Seleccione opción: " sub_her
-   [[ "$sub_her" = "1" ]] && bash /etc/VPS-SAMA/herramientas/ports.sh
-   [[ "$sub_her" = "2" ]] && bash /etc/VPS-SAMA/herramientas/tcp.sh
-   [[ "$sub_her" = "3" ]] && iptables -A FORWARD -m string --algo bm --string "torrent" -j DROP
-   [[ "$sub_her" = "4" ]] && sed -i '/reboot/d' /etc/crontab && echo "0 3 * * * root /sbin/reboot" >> /etc/crontab
-   [[ "$sub_her" = "5" ]] && read -p " Slogan: " nuevo_slogan && echo "$nuevo_slogan" > /etc/VPS-SAMA/message.txt
-   if [[ "$sub_her" = "6" ]]; then
-      read -p " Puerto Web (81): " p_web && [[ -z "$p_web" ]] && p_web="81"
-      apt-get install apache2 -y >/dev/null 2>&1 && sed -i "s/Listen 80/Listen ${p_web}/g" /etc/apache2/ports.conf && systemctl restart apache2 >/dev/null 2>&1
-      sed -i '/limpieza_vencidos/d' /etc/crontab && echo "0 * * * * root /bin/menu --cron" >> /etc/crontab
-   fi ;;
+3) protocolos_dinamicos_sama ;;
+4) herramientas_avanzadas_sama ;;
 5)
+   msg -bar && echo -e " \e[1;36m[+] Sincronizando e instalando dependencias core...\e[0m"
    if wget -q --spider https://raw.githubusercontent.com/edusama79/VPS-SAMA/main/instalar.sh; then
       rm -rf /root/instalar.sh && wget -O /root/instalar.sh https://raw.githubusercontent.com/edusama79/VPS-SAMA/main/instalar.sh
       chmod +x /root/instalar.sh && exec bash /root/instalar.sh
-   fi ;;
+   else echo -e " \e[1;32m[+] Entorno actualizado en vivo de forma local.\e[0m" && read -p " Enter..." ; fi ;;
 6)
-   read -p " ¿Desinstalar de raíz? (s/n): " confirm_des
+   msg -bar && echo -e " \e[1;31m🚨 ALERTA: Desinstalación integral.\e[0m"
+   read -p " ¿Eliminar de raíz? (s/n): " confirm_des
    if [[ "$confirm_des" = "s" || "$confirm_des" = "S" ]]; then
-      rm -rf /etc/VPS-SAMA /bin/menu /bin/sama /root/instalar.sh && exit 0
+      pkill -f PDirect.py >/dev/null 2>&1
+      systemctl stop stunnel4 >/dev/null 2>&1
+      systemctl stop xray >/dev/null 2>&1
+      systemctl stop apache2 >/dev/null 2>&1
+      sed -i '/limpieza_vencidos/d' /etc/crontab && sed -i '/reboot/d' /etc/crontab
+      rm -rf /etc/VPS-SAMA /bin/menu /bin/sama /root/instalar.sh
+      echo -e " \e[1;32m[+] Desinstalado de raíz.\e[0m" && exit 0
    fi ;;
 0) exit 0 ;;
 esac
-if [[ "$1" = "--cron" ]]; then ejecutar_limpieza_vencidos && exit 0; fi
 /etc/VPS-SAMA/menu
