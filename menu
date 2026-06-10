@@ -104,8 +104,24 @@ administrar_cuentas_sama() {
    case $op_db in
    1)
       msg -bar
-      read -p " Nombre de usuario: " user
-      read -p " Contraseña: " pass
+      while true; do
+         read -p " Nombre de usuario (Máx 16 caracteres): " user
+         if [ ${#user} -gt 16 ]; then
+            echo -e " \e[1;31m[!] Error: El usuario no puede superar los 16 caracteres. Intente de nuevo.\e[0m"
+         elif [ -z "$user" ]; then
+            echo -e " \e[1;31m[!] Error: El campo no puede estar vacío.\e[0m"
+         else break; fi
+      done
+      
+      while true; do
+         read -p " Contraseña (Máx 16 caracteres): " pass
+         if [ ${#pass} -gt 16 ]; then
+            echo -e " \e[1;31m[!] Error: La contraseña no puede superar los 16 caracteres. Intente de nuevo.\e[0m"
+         elif [ -z "$pass" ]; then
+            echo -e " \e[1;31m[!] Error: El campo no puede estar vacío.\e[0m"
+         else break; fi
+      done
+      
       read -p " Días de duración: " dias
       useradd -M -s /bin/false -e "$(date -d "$dias days" +"%Y-%m-%d")" $user
       echo "$user:$pass" | chpasswd
@@ -116,8 +132,16 @@ administrar_cuentas_sama() {
       ;;
    2)
       msg -bar
-      read -p " Nombre de usuario: " user
-      read -p " Pegue el HWID / ID del dispositivo: " hwid
+      while true; do
+         read -p " Nombre de usuario (Máx 16 caracteres): " user
+         if [ ${#user} -gt 16 ]; then
+            echo -e " \e[1;31m[!] Error: El usuario no puede superar los 16 caracteres. Intente de nuevo.\e[0m"
+         elif [ -z "$user" ]; then
+            echo -e " \e[1;31m[!] Error: El campo no puede estar vacío.\e[0m"
+         else break; fi
+      done
+      
+      read -p " Pegue el HWID / ID del dispositivo (Libre): " hwid
       read -p " Días de duración: " dias
       useradd -M -s /bin/false -e "$(date -d "$dias days" +"%Y-%m-%d")" $user
       echo "$user:hwidsama123" | chpasswd
@@ -130,8 +154,17 @@ administrar_cuentas_sama() {
       msg -bar
       echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mNombre del Cliente (Para saber de quién es): "
       read cliente_nom
-      echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mIngrese o pegue el TOKEN manual (Usuario): "
-      read token_manual
+      
+      while true; do
+         echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mIngrese o pegue el TOKEN manual (Máx 16 carac): "
+         read token_manual
+         if [ ${#token_manual} -gt 16 ]; then
+            echo -e " \e[1;31m     [!] Error: El Token no puede superar los 16 caracteres. Intente de nuevo.\e[0m"
+         elif [ -z "$token_manual" ]; then
+            echo -e " \e[1;31m     [!] Error: El campo no puede estar vacío.\e[0m"
+         else break; fi
+      done
+      
       echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mDías de duración para este Token: "
       read dias
       
@@ -139,8 +172,8 @@ administrar_cuentas_sama() {
       cliente_nom=$(echo "$cliente_nom" | sed 's/ /_/g')
       [[ -z "$cliente_nom" ]] && cliente_nom="Sin_Nombre"
 
-      if [[ -z "$token_manual" || -z "$dias" ]]; then
-         echo -e "\e[1;31m\n [-] Error: Ningún campo puede quedar vacío.\e[0m"
+      if [ -z "$dias" ]; then
+         echo -e "\e[1;31m\n [-] Error: La duración no puede quedar vacía.\e[0m"
          read -p " Presione Enter para continuar..."
          return 0
       fi
@@ -158,9 +191,6 @@ administrar_cuentas_sama() {
       read -p " Presione Enter para continuar..."
       ;;
    4)
-      # =========================================================
-      #        [4] REMOVER USUARIO INTERACTIVO CON LISTA
-      # =========================================================
       clear
       msg -bar
       echo -e "         \e[1;31m🚨 GESTOR DE BAJAS DE CUENTAS / TOKENS 🚨\e[0m"
@@ -176,7 +206,6 @@ administrar_cuentas_sama() {
       echo -e " \e[1;33mSeleccione el número del usuario que desea eliminar:\e[0m"
       echo " ————————————————————————————————————————————————————"
       
-      # Leer y enumerar dinámicamente los usuarios de la base de datos
       local i=1
       declare -A lista_users
       
@@ -191,7 +220,6 @@ administrar_cuentas_sama() {
       echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mIngrese el número del usuario a borrar: "
       read num_elim
       
-      # Validar que la opción elegida sea un número válido dentro del rango
       local usuario_seleccionado="${lista_users[$num_elim]}"
       
       if [[ -z "$usuario_seleccionado" ]]; then
@@ -232,13 +260,19 @@ administrar_cuentas_sama() {
       ;;
    6)
       msg -bar
-      read -p " Ingrese la NUEVA Clave Fija para los Tokens: " nueva_key
-      if [ ! -z "$nueva_key" ]; then
-         echo "$nueva_key" > /etc/VPS-SAMA/token.key
-         echo -e "\e[1;32m\n [+] Clave Universal actualizada a: $nueva_key\e[0m"
-      else
-         echo -e "\e[1;31m\n [-] Cancelado. La clave no puede estar en blanco.\e[0m"
-      fi
+      while true; do
+         read -p " Ingrese la NUEVA Clave Fija para los Tokens (Máx 16 carac): " nueva_key
+         if [ ${#nueva_key} -gt 16 ]; then
+            echo -e " \e[1;31m[!] Error: La clave fija de red no puede superar los 16 caracteres.\e[0m"
+         elif [ ! -z "$nueva_key" ]; then
+            echo "$nueva_key" > /etc/VPS-SAMA/token.key
+            echo -e "\e[1;32m\n [+] Clave Universal actualizada a: $nueva_key\e[0m"
+            break
+         else
+            echo -e "\e[1;31m\n [-] Cancelado. La clave no puede estar en blanco.\e[0m"
+            break
+         fi
+      done
       read -p " Presione Enter para continuar..."
       ;;
    *) return 0 ;;
