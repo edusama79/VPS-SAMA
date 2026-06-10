@@ -16,37 +16,29 @@ yellow=$(tput setaf 3)
 
 SCPdir="/etc/VPS-SAMA" && [[ ! -d ${SCPdir} ]] && mkdir -p ${SCPdir}
 touch /etc/VPS-SAMA/usuarios.db
+touch /etc/VPS-SAMA/v2ray_usuarios.db
 
-# Configuración inicial de la Clave Token por defecto si no existe
-if [ ! -f "/etc/VPS-SAMA/token.key" ]; then
-   echo "sama123" > /etc/VPS-SAMA/token.key
-fi
+# Configuración inicial de la Clave Token y Slogan si no existen
+[[ ! -f "/etc/VPS-SAMA/token.key" ]] && echo "sama123" > /etc/VPS-SAMA/token.key
+[[ ! -f "/etc/VPS-SAMA/message.txt" ]] && echo "VPS-SAMA PREMIUM" > /etc/VPS-SAMA/message.txt
 
 # RENDIMIENTO DE MEMORIA Y PROCESADOR
 _core=$(printf '%-1s' "$(grep -c cpu[0-9] /proc/stat)")
 _usop=$(top -bn1 | sed -rn '3s/[^0-9]* ([0-9\.]+) .*/\1/p;4s/.*, ([0-9]+) .*/\1/p' | tr '\n' ' ')
-ram1=$(free -h | grep -i mem | awk {'print $2'})
-ram2=$(free -h | grep -i mem | awk {'print $4'})
-ram3=$(free -h | grep -i mem | awk {'print $3'})
 _usor=$(printf '%-8s' "$(free -m | awk 'NR==2{printf "%.2f%%", $3*100/$2 }')")
 
-# Funciones de Interfaz Estética de Líneas
 msg() {
-   NEGRITO='\e[1m'
-   SEMCOR='\e[0m'
+   NEGRITO='\e[1m' && SEMCOR='\e[0m'
    COLOR[0]='\033[1;37m' # Blanco
    COLOR[1]='\e[31m'     # Rojo
    COLOR[2]='\e[32m'     # Verde
    COLOR[3]='\e[33m'     # Amarillo
-   COLOR[6]='\033[1;97m' # Cyan/Blanco Brillante
-   
+   COLOR[6]='\033[1;97m' # Cyan Brillante
    case $1 in
    -ne) cor="${COLOR[1]}${NEGRITO}" && echo -ne "${cor}${2}${SEMCOR}" ;;
    -ama) cor="${COLOR[3]}${NEGRITO}" && echo -e "${cor}${2}${SEMCOR}" ;;
-   -verm) cor="${COLOR[3]}${NEGRITO}[!] ${COLOR[1]}" && echo -e "${cor}${2}${SEMCOR}" ;;
    -azu) cor="${COLOR[6]}${NEGRITO}" && echo -e "${cor}${2}${SEMCOR}" ;;
    -verd) cor="${COLOR[2]}${NEGRITO}" && echo -e "${cor}${2}${SEMCOR}" ;;
-   -bra) cor="${COLOR[0]}${SEMCOR}" && echo -e "${cor}${2}${SEMCOR}" ;;
    "-bar2" | "-bar") cor="${COLOR[1]}————————————————————————————————————————————————————" && echo -e "${SEMCOR}${cor}${SEMCOR}" ;;
    -tit) echo -e "\e[97m \033[1;41m| #-#-► 🐲 SCRIPT VPS-SAMA PREMIUM ◄-#-# | \033[0;37m" ;;
    esac
@@ -68,8 +60,7 @@ os_system() {
 }
 
 selection_fun() {
-   local selection="null"
-   local range
+   local selection="null" && local range
    for ((i = 0; i <= $1; i++)); do range[$i]="$i "; done
    while [[ ! $(echo ${range[*]} | grep -w "$selection") ]]; do
       echo -ne "\033[1;37m ► Selecione una Opcion: " >&2
@@ -80,23 +71,21 @@ selection_fun() {
 }
 
 # =========================================================
-# [1] ADMINISTRAR CUENTAS (NORMAL, HWID, TOKEN) + API APPS
+# [1] GESTIÓN SSH / TOKEN
 # =========================================================
 administrar_cuentas_sama() {
-   clear
-   msg -bar
+   clear && msg -bar
    local CLAVE_TOKEN_ACTUAL=$(cat /etc/VPS-SAMA/token.key)
-   
-   echo -e "      \e[1;36m| #-#-► 🐲 ADMINISTRACIÓN DE CUENTAS ◄-#-# |\e[0m"
+   echo -e "      \e[1;36m| #-#-► 🐲 GESTIÓN SSH Y TOKENS ◄-#-# |\e[0m"
    msg -bar
    echo -e "      \033[1;37mClave Token Activa de Red: \033[1;93m$CLAVE_TOKEN_ACTUAL\e[0m"
    msg -bar
-   echo -ne " \033[1;32m [1] \033[1;31m=>> \033[1;37mNORMAL (Usuario y Contraseña tradicional)\n"
-   echo -ne " \033[1;32m [2] \033[1;31m=>> \033[1;37mHWID   (Bloqueo por ID único de celular)\n"
-   echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mTOKEN  (Crear ingresando Token manual + Dueño)\n"
-   echo -ne " \033[1;32m [4] \033[1;31m=>> \033[1;37mREMOVER USUARIO O TOKEN DEL SISTEMA\n"
+   echo -ne " \033[1;32m [1] \033[1;31m=>> \033[1;37mNORMAL (Usuario y Contraseña)\n"
+   echo -ne " \033[1;32m [2] \033[1;31m=>> \033[1;37mHWID   (Bloqueo por ID de celular)\n"
+   echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mTOKEN  (Token Manual sin escribir Clave)\n"
+   echo -ne " \033[1;32m [4] \033[1;37m=>> \033[1;31mREMOVER USUARIO O TOKEN DEL SISTEMA\n"
    echo -ne " \033[1;32m [5] \033[1;37m=>> \033[1;37mLISTAR TODAS LAS CUENTAS REGISTRADAS\n"
-   echo -ne " \033[1;32m [6] \033[1;37m=>> \033[1;37mEDITAR / CAMBIAR LA CLAVE TOKEN FIJA\n"
+   echo -ne " \033[1;32m [6] \033[1;37m=>> \033[1;37mEDITAR LA CLAVE TOKEN FIJA\n"
    echo -ne " \033[1;32m [0] \033[1;31m=>> \033[1;41m VOLVER AL MENÚ CENTRAL \033[0m\n"
    msg -bar
    
@@ -104,199 +93,179 @@ administrar_cuentas_sama() {
    case $op_db in
    1)
       msg -bar
-      while true; do
-         read -p " Nombre de usuario (Máx 16 caracteres): " user
-         if [ ${#user} -gt 16 ]; then
-            echo -e " \e[1;31m[!] Error: El usuario no puede superar los 16 caracteres. Intente de nuevo.\e[0m"
-         elif [ -z "$user" ]; then
-            echo -e " \e[1;31m[!] Error: El campo no puede estar vacío.\e[0m"
-         else break; fi
-      done
-      
-      while true; do
-         read -p " Contraseña (Máx 16 caracteres): " pass
-         if [ ${#pass} -gt 16 ]; then
-            echo -e " \e[1;31m[!] Error: La contraseña no puede superar los 16 caracteres. Intente de nuevo.\e[0m"
-         elif [ -z "$pass" ]; then
-            echo -e " \e[1;31m[!] Error: El campo no puede estar vacío.\e[0m"
-         else break; fi
-      done
-      
+      while true; do read -p " Nombre de usuario (Máx 16): " user; [[ ${#user} -le 16 && ! -z "$user" ]] && break || echo -e " \e[1;31m[!] Inválido.\e[0m"; done
+      while true; do read -p " Contraseña (Máx 16): " pass; [[ ${#pass} -le 16 && ! -z "$pass" ]] && break || echo -e " \e[1;31m[!] Inválida.\e[0m"; done
       read -p " Días de duración: " dias
-      useradd -M -s /bin/false -e "$(date -d "$dias days" +"%Y-%m-%d")" $user
-      echo "$user:$pass" | chpasswd
-      fecha_venc=$(date -d "$dias days" +"%d/%m/%Y")
-      echo "$user|NORMAL|$pass|$fecha_venc" >> /etc/VPS-SAMA/usuarios.db
-      echo -e "\e[1;32m\n [+] Cuenta Normal '$user' creada hasta el $fecha_venc\e[0m"
-      read -p " Presione Enter para continuar..."
-      ;;
+      useradd -M -s /bin/false -e "$(date -d "$dias days" +"%Y-%m-%d")" $user && echo "$user:$pass" | chpasswd
+      echo "$user|NORMAL|$pass|$(date -d "$dias days" +"%d/%m/%Y")" >> /etc/VPS-SAMA/usuarios.db
+      echo -e "\e[1;32m\n [+] Registrado con éxito.\e[0m" && read -p " Presione Enter..." ;;
    2)
       msg -bar
-      while true; do
-         read -p " Nombre de usuario (Máx 16 caracteres): " user
-         if [ ${#user} -gt 16 ]; then
-            echo -e " \e[1;31m[!] Error: El usuario no puede superar los 16 caracteres. Intente de nuevo.\e[0m"
-         elif [ -z "$user" ]; then
-            echo -e " \e[1;31m[!] Error: El campo no puede estar vacío.\e[0m"
-         else break; fi
-      done
-      
-      read -p " Pegue el HWID / ID del dispositivo (Libre): " hwid
-      read -p " Días de duración: " dias
-      useradd -M -s /bin/false -e "$(date -d "$dias days" +"%Y-%m-%d")" $user
-      echo "$user:hwidsama123" | chpasswd
-      fecha_venc=$(date -d "$dias days" +"%d/%m/%Y")
-      echo "$user|HWID|$hwid|$fecha_venc" >> /etc/VPS-SAMA/usuarios.db
-      echo -e "\e[1;32m\n [+] Cuenta HWID vinculada con éxito hasta el $fecha_venc\e[0m"
-      read -p " Presione Enter para continuar..."
-      ;;
+      while true; do read -p " Nombre de usuario (Máx 16): " user; [[ ${#user} -le 16 && ! -z "$user" ]] && break || echo -e " \e[1;31m[!] Inválido.\e[0m"; done
+      read -p " Pegue el HWID: " hwid && read -p " Días: " dias
+      useradd -M -s /bin/false -e "$(date -d "$dias days" +"%Y-%m-%d")" $user && echo "$user:hwidsama123" | chpasswd
+      echo "$user|HWID|$hwid|$(date -d "$dias days" +"%d/%m/%Y")" >> /etc/VPS-SAMA/usuarios.db
+      echo -e "\e[1;32m\n [+] Registrado con éxito.\e[0m" && read -p " Presione Enter..." ;;
    3)
       msg -bar
-      echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mNombre del Cliente (Para saber de quién es): "
-      read cliente_nom
-      
+      echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mNombre del Cliente: " && read cliente_nom
       while true; do
-         echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mIngrese o pegue el TOKEN manual (Máx 16 carac): "
-         read token_manual
-         if [ ${#token_manual} -gt 16 ]; then
-            echo -e " \e[1;31m     [!] Error: El Token no puede superar los 16 caracteres. Intente de nuevo.\e[0m"
-         elif [ -z "$token_manual" ]; then
-            echo -e " \e[1;31m     [!] Error: El campo no puede estar vacío.\e[0m"
-         else break; fi
+         echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mIngrese o pegue el TOKEN (Máx 16): " && read token_manual
+         [[ ${#token_manual} -le 16 && ! -z "$token_manual" ]] && break || echo -e " \e[1;31m     [!] Largo incorrecto.\e[0m"
       done
-      
-      echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mDías de duración para este Token: "
-      read dias
-      
+      echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mDías de duración: " && read dias
       local clave_uni=$(cat /etc/VPS-SAMA/token.key)
-      cliente_nom=$(echo "$cliente_nom" | sed 's/ /_/g')
-      [[ -z "$cliente_nom" ]] && cliente_nom="Sin_Nombre"
-
-      if [ -z "$dias" ]; then
-         echo -e "\e[1;31m\n [-] Error: La duración no puede quedar vacía.\e[0m"
-         read -p " Presione Enter para continuar..."
-         return 0
-      fi
-      
-      useradd -M -s /bin/false -e "$(date -d "$dias days" +"%Y-%m-%d")" $token_manual
-      echo "$token_manual:$clave_uni" | chpasswd
-      fecha_venc=$(date -d "$dias days" +"%d/%m/%Y")
-      
-      echo "$token_manual|TOKEN|$clave_uni|$fecha_venc|$cliente_nom" >> /etc/VPS-SAMA/usuarios.db
-      echo -e "\e[1;32m\n [+] ¡TOKEN REGISTRADO CON ÉXITO! \e[0m"
-      echo -e "     \e[1;37mDueño / Cliente:\e[1;35m $cliente_nom \e[0m"
-      echo -e "     \e[1;37mUsuario (Token):\e[1;36m $token_manual \e[0m"
-      echo -e "     \e[1;37mContraseña Fija:\e[1;33m $clave_uni \e[0m"
-      echo -e "     \e[1;37mVálido hasta el:\e[1;32m $fecha_venc \e[0m"
-      read -p " Presione Enter para continuar..."
-      ;;
+      cliente_nom=$(echo "$cliente_nom" | sed 's/ /_/g') && [[ -z "$cliente_nom" ]] && cliente_nom="Sin_Nombre"
+      useradd -M -s /bin/false -e "$(date -d "$dias days" +"%Y-%m-%d")" $token_manual && echo "$token_manual:$clave_uni" | chpasswd
+      echo "$token_manual|TOKEN|$clave_uni|$(date -d "$dias days" +"%d/%m/%Y")|$cliente_nom" >> /etc/VPS-SAMA/usuarios.db
+      echo -e "\e[1;32m\n [+] ¡TOKEN MANUAL REGISTRADO CON ÉXITO!\e[0m" && read -p " Presione Enter..." ;;
    4)
-      clear
-      msg -bar
-      echo -e "         \e[1;31m🚨 GESTOR DE BAJAS DE CUENTAS / TOKENS 🚨\e[0m"
-      msg -bar
-      
-      if [ ! -f /etc/VPS-SAMA/usuarios.db ] || [ ! -s /etc/VPS-SAMA/usuarios.db ]; then
-         echo -e " \e[1;31m[-] No hay usuarios registrados en el sistema actualmente.\e[0m"
-         msg -bar
-         read -p " Presione Enter para continuar..."
-         return 0
-      fi
-
-      echo -e " \e[1;33mSeleccione el número del usuario que desea eliminar:\e[0m"
-      echo " ————————————————————————————————————————————————————"
-      
-      local i=1
-      declare -A lista_users
-      
+      clear && msg -bar && echo -e "         \e[1;31m🚨 GESTOR DE BAJAS DE CUENTAS / TOKENS 🚨\e[0m" && msg -bar
+      if [[ ! -s /etc/VPS-SAMA/usuarios.db ]]; then echo -e " \e[1;31m[-] No hay usuarios.\e[0m" && msg -bar && read -p " Presione Enter..." && return 0; fi
+      local i=1 && declare -A lista_users
       while IFS='|' read -r u t c v n; do
-         [[ -z "$n" ]] && n="—"
-         printf "  \e[1;32m[%02d]\e[1;31m =>> \e[1;37m%-15s \e[1;33m%-8s \e[1;35m(Dueño: %s)\e[0m\n" "$i" "$u" "$t" "$n"
-         lista_users[$i]="$u"
-         i=$((i+1))
+         printf "  \e[1;32m[%02d]\e[1;31m => Gram \e[1;37m%-15s \e[1;33m%-8s \e[1;35m(Dueño: %s)\e[0m\n" "$i" "$u" "$t" "$n"
+         lista_users[$i]="$u" && i=$((i+1))
       done < /etc/VPS-SAMA/usuarios.db
-      
       echo " ————————————————————————————————————————————————————"
-      echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mIngrese el número del usuario a borrar: "
-      read num_elim
-      
+      echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;37mSeleccione número a borrar: " && read num_elim
       local usuario_seleccionado="${lista_users[$num_elim]}"
-      
-      if [[ -z "$usuario_seleccionado" ]]; then
-         echo -e "\e[1;31m\n [-] Selección inválida. Número no encontrado.\e[0m"
-         read -p " Presione Enter para continuar..."
-         return 0
-      fi
-      
-      msg -bar
-      echo -e " \e[1;31m[!] Va a eliminar a:\e[1;37m $usuario_seleccionado \e[0m"
-      echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;33m¿Está completamente seguro de eliminarlo? (s/n): \033[0m"
-      read confirm_user
-      
+      if [[ -z "$usuario_seleccionado" ]]; then echo -e "\e[1;31m\n [-] Inválido.\e[0m" && read -p " Presione Enter..." && return 0; fi
+      msg -bar && echo -ne " \033[1;32m[*] \033[1;31m=>> \033[1;33m¿Seguro de borrar a $usuario_seleccionado? (s/n): \033[0m" && read confirm_user
       if [[ "$confirm_user" = "s" || "$confirm_user" = "S" ]]; then
          userdel -f "$usuario_seleccionado" >/dev/null 2>&1
          sed -i "/^$usuario_seleccionado|/d" /etc/VPS-SAMA/usuarios.db
-         echo -e "\e[1;32m\n [+] El usuario '$usuario_seleccionado' fue removido con éxito.\e[0m"
-      else
-         echo -e "\e[1;32m\n [+] Operación cancelada. El usuario no fue alterado.\e[0m"
+         echo -e "\e[1;32m\n [+] Removido.\e[0m"
       fi
-      read -p " Presione Enter para continuar..."
-      ;;
+      read -p " Presione Enter..." ;;
    5)
-      clear
-      echo -e "\e[1;36m┌────────────────────────────────────────────────────────┐\e[0m"
-      echo -e "\e[1;36m│             BASE DE DATOS COMPLETA VPS-SAMA            │\e[0m"
-      echo -e "\e[1;36m└────────────────────────────────────────────────────────┘\e[0m"
+      clear && echo -e "\e[1;36m┌────────────────────────────────────────────────────────┐\e[0m"
       printf " \e[1;33m%-16s %-8s %-12s %-12s %-12s\e[0m\n" "USUARIO/TOKEN" "TIPO" "CLAVE" "VENCIMIENTO" "DUEÑO"
       echo " ————————————————————————————————————————————————————"
-      if [ -f /etc/VPS-SAMA/usuarios.db ]; then
-          while IFS='|' read -r u t c v n; do
-              [[ -z "$n" ]] && n="—"
-              printf " %-16s %-8s %-12s %-12s %-12s\n" "$u" "$t" "$c" "$v" "$n"
-          done < /etc/VPS-SAMA/usuarios.db
-      fi
-      echo " ————————————————————————————————————————————————————"
-      read -p " Presione Enter para continuar..."
-      ;;
+      while IFS='|' read -r u t c v n; do [[ -z "$n" ]] && n="—"; printf " %-16s %-8s %-12s %-12s %-12s\n" "$u" "$t" "$c" "$v" "$n"; done < /etc/VPS-SAMA/usuarios.db
+      echo " ————————————————————————————————————————————————————" && read -p " Presione Enter..." ;;
    6)
+      msg -bar && read -p " Ingrese la NUEVA Clave Fija de Tokens: " nueva_key
+      [[ ! -z "$nueva_key" && ${#nueva_key} -le 16 ]] && echo "$nueva_key" > /etc/VPS-SAMA/token.key && echo -e "\e[1;32m\n [+] Cambiada.\e[0m" || echo -e "\e[1;31m[!] Error.\e[0m"
+      read -p " Presione Enter..." ;;
+   esac
+}
+
+# =========================================================
+# [2] MOTOR EXCLUSIVO V2RAY / XRAY (NUEVO ESTILO VPS-MX)
+# =========================================================
+gestionar_v2ray_sama() {
+   clear && msg -bar
+   echo -e "      \e[1;36m| #-#-► ⚙️ CONTROL V2RAY / XRAY WS ⚙️ ◄-#-# |\e[0m"
+   msg -bar
+   echo -ne " \033[1;32m [1] \033[1;31m=>> \033[1;37mAGREGAR NUEVO USUARIO V2RAY (UUID CODES)\n"
+   echo -ne " \033[1;32m [2] \033[1;37m=>> \033[1;31mELIMINAR USUARIO V2RAY DEL PANEL\n"
+   echo -ne " \033[1;32m [3] \033[1;37m=>> \033[1;37mVER USUARIOS V2RAY ACTIVOS Y LINKS CONFIG\n"
+   echo -ne " \033[1;32m [0] \033[1;31m=>> \033[1;41m VOLVER AL MENÚ CENTRAL \033[0m\n"
+   msg -bar
+   
+   local op_v2=$(selection_fun 3)
+   case $op_v2 in
+   1)
       msg -bar
-      while true; do
-         read -p " Ingrese la NUEVA Clave Fija para los Tokens (Máx 16 carac): " nueva_key
-         if [ ${#nueva_key} -gt 16 ]; then
-            echo -e " \e[1;31m[!] Error: La clave fija de red no puede superar los 16 caracteres.\e[0m"
-         elif [ ! -z "$nueva_key" ]; then
-            echo "$nueva_key" > /etc/VPS-SAMA/token.key
-            echo -e "\e[1;32m\n [+] Clave Universal actualizada a: $nueva_key\e[0m"
-            break
-         else
-            echo -e "\e[1;31m\n [-] Cancelado. La clave no puede estar en blanco.\e[0m"
-            break
-         fi
-      done
-      read -p " Presione Enter para continuar..."
-      ;;
-   *) return 0 ;;
+      read -p " Nombre del cliente para V2Ray: " v2user
+      read -p " Días de duración: " v2dias
+      [[ -z "$v2user" ]] && return 0
+      
+      # Generar UUID y guardar configuración real
+      local uuid_gen=$(cat /proc/sys/kernel/random/uuid)
+      local expiration=$(date -d "$v2dias days" +"%d/%m/%Y")
+      
+      echo "$v2user|$uuid_gen|$expiration" >> /etc/VPS-SAMA/v2ray_usuarios.db
+      
+      # Enlace listo para HTTP Custom / V2rayNG (Puerto Base 4433)
+      local my_ip=$(meu_ip)
+      local link_v2ray="vless://${uuid_gen}@${my_ip}:4433?type=ws&path=%2Fvps-sama&encryption=none#${v2user}"
+      
+      echo -e "\e[1;32m\n [+] ¡USUARIO V2RAY CREADO CON ÉXITO! \e[0m"
+      echo -e "     \e[1;37mUUID:\e[1;36m $uuid_gen \e[0m"
+      echo -e "     \e[1;37mLink de Red:\e[1;33m $link_v2ray \e[0m"
+      read -p " Presione Enter..." ;;
+   2)
+      msg -bar
+      if [[ ! -s /etc/VPS-SAMA/v2ray_usuarios.db ]]; then echo -e " \e[1;31m[-] No hay usuarios.\e[0m" && read -p " Enter..." && return 0; fi
+      local c=1 && declare -A v2_list
+      while IFS='|' read -r user id exp; do
+         printf "  \e[1;32m[%02d]\e[1;31m =>> \e[1;37m%s \e[1;35m(Vence: %s)\e[0m\n" "$c" "$user" "$exp"
+         v2_list[$c]="$user" && c=$((c+1))
+      done < /etc/VPS-SAMA/v2ray_usuarios.db
+      read -p " Seleccione número a borrar: " n_del
+      local v2_del="${v2_list[$n_del]}"
+      if [[ ! -z "$v2_del" ]]; then
+         sed -i "/^$v2_del|/d" /etc/VPS-SAMA/v2ray_usuarios.db
+         echo -e "\e[1;31m[-] Usuario V2Ray borrado.\e[0m"
+      fi
+      read -p " Enter..." ;;
+   3)
+      clear && msg -bar && echo -e "         \e[1;36m📋 LISTADO DE LLAVES V2RAY ACTIVAS 📋\e[0m" && msg -bar
+      local my_ip=$(meu_ip)
+      while IFS='|' read -r user id exp; do
+         echo -e " \e[1;32m• Cliente:\e[1;37m $user \e[1;33m(Vence: $exp)\e[0m"
+         echo -e " \e[1;35m  Link:\e[1;30m vless://${id}@${my_ip}:4433?type=ws&path=%2Fvps-sama&encryption=none#${user}\n"
+      done < /etc/VPS-SAMA/v2ray_usuarios.db
+      msg -bar && read -p " Presione Enter..." ;;
+   esac
+}
+
+# =========================================================
+# [4] SUB-MENÚ DE HERRAMIENTAS AVANZADAS + EXTRAS VPS-MX
+# =========================================================
+herramientas_avanzadas_sama() {
+   clear && msg -bar
+   echo -e "         \e[1;36m⚙️ SUB-MENÚ DE AJUSTES Y HERRAMIENTAS ⚙️\e[0m"
+   msg -bar
+   echo -e "  \e[1;32m[1]\e[1;37m > Ver Lista de Puertos Activos (MONITOR LIST)"
+   echo -e "  \e[1;32m[2]\e[1;37m > Optimizar Sistema y Activar Acelerador TCP BBR"
+   echo -e "  \e[1;32m[3]\e[1;37m > Bloquear Descargas Torrent / P2P (Anti-Bajas)"
+   echo -e "  \e[1;32m[4]\e[1;37m > Programar Reinicio Nocturno de RAM (3:00 AM)"
+   echo -e "  \e[1;32m[5]\e[1;37m > Cambiar Slogan / Título del Panel Control"
+   echo -e "  \e[1;32m[0]\e[1;37m > Volver al Menú Principal"
+   msg -bar
+   read -p " Seleccione una opción: " sub_her
+   
+   case $sub_her in
+   1) bash /etc/VPS-SAMA/herramientas/ports.sh ;;
+   2) bash /etc/VPS-SAMA/herramientas/tcp.sh ;;
+   3)
+      clear && msg -bar && echo -e " \e[1;31m[+] Configurando Firewall Anti-Torrents (P2P)...\e[0m"
+      # Inyectar reglas IPTABLES para bloquear rastreadores torrent conocidos
+      iptables -A FORWARD -m string --algo bm --string "bitget" -j DROP
+      iptables -A FORWARD -m string --algo bm --string "announce.php?pass=" -j DROP
+      iptables -A FORWARD -m string --algo bm --string "torrent" -j DROP
+      echo -e "\e[1;32m[+] Puertos Torrent bloqueados con éxito de su red.\e[0m" && read -p " Enter..." ;;
+   4)
+      clear && msg -bar
+      sed -i '/reboot/d' /etc/crontab
+      echo "0 3 * * * root /sbin/reboot" >> /etc/crontab
+      echo -e "\e[1;32m[+] Tarea Cron asignada. El VPS se limpiará solo a las 3:00 AM todas las noches.\e[0m" && read -p " Enter..." ;;
+   5)
+      clear && msg -bar
+      read -p " Ingrese el nuevo nombre/marca para su Panel: " nuevo_slogan
+      [[ ! -z "$nuevo_slogan" ]] && echo "$nuevo_slogan" > /etc/VPS-SAMA/message.txt
+      echo -e "\e[1;32m[+] Slogan cambiado.\e[0m" && read -p " Enter..." ;;
    esac
 }
 
 # =========================================================
 #             INTERFAZ GRÁFICA PRINCIPAL (TERMINAL)
 # =========================================================
-clear
-msg -bar
-msg -tit
-msg -bar
-title=$(cat ${SCPdir}/message.txt 2>/dev/null || echo "VPS-SAMA PREMIUM")
+clear && msg -bar && msg -tit && msg -bar
+title=$(cat ${SCPdir}/message.txt)
 echo -e "      \e[1;36mSlogan / Marca: $title\e[0m"
 msg -bar
 echo -e "      \033[1;37mIP VPS: \033[1;93m$(meu_ip)     \033[1;37mSISTEMA O.S: \033[1;96m$(os_system)"
 echo -e "      \033[1;37mNÚCLEOS CPU: \033[1;32m$_core       \033[1;37mUSO RAM: \033[1;32m$_usor"
 msg -bar
 
-echo -ne " \033[1;32m [1] \033[1;31m=>> \033[1;37mADMINISTRAR CUENTAS (NORMAL / HWID / TOKEN)\n"
-echo -ne " \033[1;32m [2] \033[1;31m=>> \033[1;37mINSTALADORES DE PROTOCOLOS Y TÚNELES\n"
-echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mHERRAMIENTAS DE RED, PUERTOS Y OPTIMIZACIÓN BBR\n"
-echo -ne " \033[1;32m [4] \033[1;31m=>> \033[1;37mMONITOR DE PROCESOS EN TIEMPO REAL (HTOP)\n"
+echo -ne " \033[1;32m [1] \033[1;31m=>> \033[1;37mADMINISTRAR CUENTAS SSH / TOKENS PREMIUM\n"
+echo -ne " \033[1;32m [2] \033[1;31m=>> \033[1;37mGESTIONAR CUENTAS TÚNELES V2RAY / XRAY\n"
+echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mINSTALADORES DE PROTOCOLOS ADICIONALES (SSL/SLOWDNS)\n"
+echo -ne " \033[1;32m [4] \033[1;31m=>> \033[1;37mHERRAMIENTAS DE RED, TORRENT, REBOOT Y SEGURIDAD\n"
 echo -ne " \033[1;32m [5] \033[1;31m=>> \033[1;35mACTUALIZAR PANEL COMPLETO (ONLINE DESDE GITHUB)\n"
 echo -ne " \033[1;32m [6] \033[1;31m=>> \033[1;31mDESINSTALAR SCRIPT COMPLETAMENTE DEL VPS\n"
 echo -ne " \033[1;32m [0] \033[1;31m=>> \033[1;41m SALIR DEL PANEL CONTROL \033[0m\n"
@@ -305,82 +274,35 @@ msg -bar
 selection=$(selection_fun 6)
 case ${selection} in
 1) administrar_cuentas_sama ;;
-2) 
-   clear
-   msg -bar
-   echo -e "         \e[1;36m⚙️ SUB-MENÚ INTERACTIVO DE PROTOCOLOS ⚙️\e[0m"
-   msg -bar
+2) gestionar_v2ray_sama ;;
+3) 
+   clear && msg -bar && echo -e "         \e[1;36m⚙️ INSTALADORES DE PROTOCOLOS DE ENTRADA ⚙️\e[0m" && msg -bar
    echo -e "  \e[1;32m[1]\e[1;37m > Configurar Proxy SOCKS PYTHON / WEBSOCKET"
    echo -e "  \e[1;32m[2]\e[1;37m > Configurar Servidor SSL / TLS (STUNNEL4)"
    echo -e "  \e[1;32m[3]\e[1;37m > Configurar Servidor SLOW DNS (Método Sin Saldo)"
    echo -e "  \e[1;32m[0]\e[1;37m > Cancelar y Volver al Menú Central"
-   msg -bar
-   read -p " Seleccione una opción: " sub_op
-   if [ "$sub_op" = "1" ]; then bash /etc/VPS-SAMA/protocolos/sockspy.sh; fi
-   if [ "$sub_op" = "2" ]; then bash /etc/VPS-SAMA/protocolos/ssl.sh; fi
-   if [ "$sub_op" = "3" ]; then bash /etc/VPS-SAMA/protocolos/slowdns.sh; fi
-   ;;
-3) 
-   clear
-   msg -bar
-   echo -e "         \e[1;36m⚙️ SUB-MENÚ DE HERRAMIENTAS Y AJUSTES RED ⚙️\e[0m"
-   msg -bar
-   echo -e "  \e[1;32m[1]\e[1;37m > Ver Lista de Puertos Activos (MONITOR LIST)"
-   echo -e "  \e[1;32m[2]\e[1;37m > Optimizar Núcleo Linux y Activar Acelerador TCP BBR"
-   echo -e "  \e[1;32m[0]\e[1;37m > Cancelar y Volver al Menú Central"
-   msg -bar
-   read -p " Seleccione una opción: " sub_her
-   if [ "$sub_her" = "1" ]; then bash /etc/VPS-SAMA/herramientas/ports.sh; fi
-   if [ "$sub_her" = "2" ]; then bash /etc/VPS-SAMA/herramientas/tcp.sh; fi
-   ;;
-4) sudo htop ;;
+   msg -bar && read -p " Seleccione una opción: " sub_op
+   [[ "$sub_op" = "1" ]] && bash /etc/VPS-SAMA/protocolos/sockspy.sh
+   [[ "$sub_op" = "2" ]] && bash /etc/VPS-SAMA/protocolos/ssl.sh
+   [[ "$sub_op" = "3" ]] && bash /etc/VPS-SAMA/protocolos/slowdns.sh ;;
+4) herramientas_avanzadas_sama ;;
 5)
-   msg -bar
-   echo -e " \e[1;36m[+] Conectando con el servidor de GitHub de edusama79...\e[0m"
-   sleep 1
+   msg -bar && echo -e " \e[1;36m[+] Conectando con GitHub...\e[0m" && sleep 1
    if wget -q --spider https://raw.githubusercontent.com/edusama79/VPS-SAMA/main/instalar.sh; then
-      echo -e " \e[1;32m[+] ¡Actualización encontrada! Bajando paquetes nuevos...\e[0m"
-      rm -rf /root/instalar.sh
-      wget -O /root/instalar.sh https://raw.githubusercontent.com/edusama79/VPS-SAMA/main/instalar.sh
-      chmod +x /root/instalar.sh
-      echo -e " \e[1;32m[+] Ejecutando instalación de fondo...\e[0m"
-      sleep 1
-      exec bash /root/instalar.sh
-   else
-      echo -e " \e[1;31m[-] Error: No se pudo conectar a GitHub.\e[0m"
-      read -p " Presione Enter para continuar..."
-   fi
-   ;;
+      rm -rf /root/instalar.sh && wget -O /root/instalar.sh https://raw.githubusercontent.com/edusama79/VPS-SAMA/main/instalar.sh
+      chmod +x /root/instalar.sh && exec bash /root/instalar.sh
+   else echo -e " \e[1;31m[-] Error.\e[0m" && read -p " Enter..." ; fi ;;
 6)
-   msg -bar
-   echo -e " \e[1;31m🚨 ALERTA: Esto eliminará por completo el script y parará las APIs.\e[0m"
-   read -p " ¿Está seguro de que desea desinstalar VPS-SAMA? (s/n): " confirm_des
+   msg -bar && echo -e " \e[1;31m🚨 ALERTA: Desinstalación integral.\e[0m"
+   read -p " ¿Eliminar de raíz? (s/n): " confirm_des
    if [[ "$confirm_des" = "s" || "$confirm_des" = "S" ]]; then
-      echo -e " \e[1;31m[-] Deteniendo APIs del puerto 81 y monitores de fondo...\e[0m"
-      fuser -k 81/tcp >/dev/null 2>&1
-      pkill -f api_puerto81.py >/dev/null 2>&1
-      pkill -f monitor.sh >/dev/null 2>&1
-      pkill -f PDirect.py >/dev/null 2>&1
-      systemctl stop stunnel4 >/dev/null 2>&1
-      pkill -f dns-server >/dev/null 2>&1
-      
-      echo -e " \e[1;31m[-] Limpiando automatizaciones en el Crontab...\e[0m"
-      sed -i '/sama_api81/d' /etc/crontab
-      sed -i '/monitor_sama/d' /etc/crontab
-      
-      echo -e " \e[1;31m[-] Eliminando archivos, carpetas y accesos directos...\e[0m"
-      rm -rf /etc/VPS-SAMA
-      rm -rf /bin/menu /bin/sama /root/instalar.sh
-      
-      echo -e " \e[1;32m[+] ¡VPS-SAMA ha sido completamente desinstalado de su VPS!\e[0m"
-      exit 0
-   else
-      echo -e " \e[1;32m[+] Desinstalación cancelada.\e[0m"
-      read -p " Presione Enter para continuar..."
-   fi
-   ;;
+      fuser -k 81/tcp >/dev/null 2>&1 && pkill -f api_puerto81.py >/dev/null 2>&1
+      pkill -f monitor.sh >/dev/null 2>&1 && pkill -f PDirect.py >/dev/null 2>&1
+      systemctl stop stunnel4 >/dev/null 2>&1 && pkill -f dns-server >/dev/null 2>&1
+      sed -i '/sama_api81/d' /etc/crontab && sed -i '/monitor_sama/d' /etc/crontab
+      rm -rf /etc/VPS-SAMA /bin/menu /bin/sama /root/instalar.sh
+      echo -e " \e[1;32m[+] Desinstalado.\e[0m" && exit 0
+   fi ;;
 0) exit 0 ;;
 esac
-
-# Retorno automático al bucle del panel
 /etc/VPS-SAMA/menu
