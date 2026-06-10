@@ -157,19 +157,6 @@ administrar_cuentas_sama() {
    read -p " Presione Enter para finalizar..."
 }
 
-# RENDIMIENTO DE PUERTOS EN VIVO
-mine_port() {
-   clear
-   msg -bar
-   msg -tit
-   echo -e "\033[1;93m      INFORMACION DEL SISTEMA Y PUERTOS ACTIVOS"
-   msg -bar2
-   echo -e "\033[1;31m PROCESADOR: \033[1;37mNUCLEOS: \033[1;32m$_core         \033[1;37mUSO DE CPU: \033[1;32m$_usop"
-   echo -e "\033[1;31m LA MEMORIA RAM SE ENCUENTRA AL: \033[1;32m$_usor"
-   echo -e "\033[1;31m DETALLE RAM: \033[1;37mTOTAL: \033[1;32m$ram1  \033[1;37mUSADO: \033[1;32m$ram3  \033[1;37mLIBRE: \033[1;32m$ram2"
-   msg -bar2
-}
-
 # RENDERIZADO DEL MENÚ EN LA TERMINAL
 clear
 msg -bar
@@ -182,18 +169,32 @@ echo -e "      \033[1;37mIP LOCAL: \033[1;93m$(meu_ip)     \033[1;37mSISTEMA: \0
 msg -bar
 
 echo -ne " \033[1;32m [1] \033[1;31m=>> \033[1;37mADMINISTRAR CUENTAS (NORMAL / HWID / TOKEN)\n"
-echo -ne " \033[1;32m [2] \033[1;31m=>> \033[1;37mVER RENDIMIENTO DE PUERTOS ACTIVOS\n"
-echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mMONITOR DE PROCESOS DEL SISTEMA (HTOP)\n"
+echo -ne " \033[1;32m [2] \033[1;31m=>> \033[1;37mINSTALADORES DE PROTOCOLOS Y PUERTOS\n"
+echo -ne " \033[1;32m [3] \033[1;31m=>> \033[1;37mMONITOR DE PUERTOS ACTIVOS (MONITOR LIST)\n"
+echo -ne " \033[1;32m [4] \033[1;31m=>> \033[1;37mMONITOR DE PROCESOS DEL SISTEMA (HTOP)\n"
 echo -ne " \033[1;32m [0] \033[1;31m=>> \033[1;41m SALIR DEL PANEL \033[0m\n"
 msg -bar
 
-selection=$(selection_fun 3)
+selection=$(selection_fun 4)
 case ${selection} in
 1) administrar_cuentas_sama ;;
-2) mine_port; read -p "Presione Enter para continuar..." ;;
-3) sudo htop ;;
+2) 
+   clear
+   echo -e "\e[1;33m ————————————————————————————————————————————————————\e[0m"
+   echo -e "         \e[1;36m⚙️ SUB-MENÚ INTERACTIVO DE PROTOCOLOS ⚙️\e[0m"
+   echo -e "\e[1;33m ————————————————————————————————————————————————————\e[0m"
+   echo -e "  \e[1;32m[1]\e[1;37m > Configurar SOCKS PYTHON / WEBSOCKET"
+   echo -e "  \e[1;32m[2]\e[1;37m > Configurar SSL / TLS (STUNNEL4)"
+   echo -e "  \e[1;32m[0]\e[1;37m > Cancelar y Volver"
+   echo -e "\e[1;33m ————————————————————————————————————————————————————\e[0m"
+   read -p " Seleccione una opción: " sub_op
+   if [ "$sub_op" = "1" ]; then bash /etc/VPS-SAMA/protocolos/sockspy.sh; fi
+   if [ "$sub_op" = "2" ]; then bash /etc/VPS-SAMA/protocolos/ssl.sh; fi
+   ;;
+3) bash /etc/VPS-SAMA/herramientas/ports.sh ;;
+4) sudo htop ;;
 0) exit 0 ;;
 esac
 
-# Auto-retorno al bucle para que el menú no se cierre
+# Auto-retorno al bucle para que el menú no se cierre solo
 /etc/VPS-SAMA/menu
